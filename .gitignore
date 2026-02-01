@@ -1,3 +1,7 @@
+# Node
+node_modules/
+build/
+
 # Python
 __pycache__/
 *.py[cod]
