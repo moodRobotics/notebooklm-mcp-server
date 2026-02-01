@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/moodRobotics/notebook-mcp-server/main/notebooklm_mcp_logo.png" width="200" alt="Notebook-mcp-server Logo">
+  <img src="./notebooklm_mcp_logo.png" width="200" alt="Notebook-mcp-server Logo">
 </p>
 
 <h1 align="center">NotebookLM MCP Server</h1>
