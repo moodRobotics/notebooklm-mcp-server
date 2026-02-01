@@ -108,6 +108,28 @@ Managed via UI or config file:
 5. Set **Command** to the executable path.
 6. Click **Save**.
 
+### 5. Antigravity
+The configuration is handled via a central `mcp.json` file.
+- **Path**: `%APPDATA%\Code\User\mcp.json` (Windows)
+
+Add to the `servers` object:
+```json
+"notebooklm": {
+  "type": "stdio",
+  "command": "PATH_TO_EXE",
+  "args": []
+}
+```
+
+### 6. Gemini CLI
+Gemini CLI can be configured to use MCP tools by pointing to the server in your local config.
+- **Path**: `~/.gemini/config.json`
+
+### 7. Visual Studio
+Visual Studio support is primarily through extensions.
+1. Install an **MCP Client** extension from the Visual Studio Marketplace.
+2. In the extension settings, add a new server with the command path provided by `setup_mcp.py`.
+
 ---
 
 ## ❓ FAQ & Troubleshooting

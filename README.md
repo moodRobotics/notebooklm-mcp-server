@@ -45,6 +45,16 @@ With this server, your AI assistant (Claude Desktop, Cursor, VS Code, etc.) can 
 - **Windsurf**: Manage via the MCP servers icon in the sidebar or `~/.codeium/windsurf/mcp_config.json`.
 - **Cline**: Settings > MCP Servers > Add.
 
+### 🌌 Antigravity
+1. Open your `mcp.json` file (typically in `AppData\Roaming\Code\User\mcp.json`).
+2. Add the `notebooklm` entry to the `servers` object.
+
+### 💎 Gemini CLI
+- Configure your `~/.gemini/config.json` to include the MCP server path under the tools section.
+
+### 🏢 Visual Studio
+- Use an MCP-compatible extension from the Marketplace (search for "MCP Client") and follow the extension-specific configuration steps.
+
 ## �📖 Detailed Instructions
 
 For a more in-depth guide, including manual installation and troubleshooting, see [INSTALL_MCP.md](./INSTALL_MCP.md).
