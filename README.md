@@ -51,6 +51,7 @@ You can install the server directly from NPM:
 
 ```bash
 npm install -g notebook-mcp-server
+npx playwright install chromium
 ```
 
 ### 2. Direct usage with NPX (Zero-Config)
