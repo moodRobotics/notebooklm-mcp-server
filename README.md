@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"></a>
   <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/MCP-Model%20Context%20Protocol-orange?style=for-the-badge" alt="MCP"></a>
-  <a href="https://www.npmjs.com/package/notebook-mcp-server"><img src="https://img.shields.io/badge/NPM-CB3837?style=for-the-badge&logo=npm&logoColor=white" alt="NPM"></a>
+  <a href="https://www.npmjs.com/package/notebooklm-mcp-server"><img src="https://img.shields.io/badge/NPM-CB3837?style=for-the-badge&logo=npm&logoColor=white" alt="NPM"></a>
 </p>
 
 <p align="center">
@@ -50,7 +50,7 @@ The **NotebookLM MCP Server** brings the power of Google's NotebookLM directly i
 You can install the server directly from NPM:
 
 ```bash
-npm install -g notebook-mcp-server
+npm install -g notebooklm-mcp-server
 npx playwright install chromium
 ```
 
@@ -59,8 +59,8 @@ npx playwright install chromium
 If you don't want to install it globally, you can run it directly:
 
 ```bash
-npx notebook-mcp-server auth   # To log in
-npx notebook-mcp-server start  # To run the server
+npx notebooklm-mcp-server auth   # To log in
+npx notebooklm-mcp-server start  # To run the server
 ```
 
 ---
@@ -71,7 +71,7 @@ Before using the server, you must link it to your Google Account. This version u
 
 1. Run the authentication command:
    ```bash
-   notebook-mcp-server auth
+   notebooklm-mcp-server auth
    ```
 2. A browser window will open. Log in with your Google account.
 3. Close the browser once you see your notebooks. Your session is now securely saved locally.
@@ -89,7 +89,7 @@ Add the following to your `claude_desktop_config.json`:
   "mcpServers": {
     "notebooklm": {
       "command": "npx",
-      "args": ["-y", "notebook-mcp-server", "start"]
+      "args": ["-y", "notebooklm-mcp-server", "start"]
     }
   }
 }
@@ -106,7 +106,7 @@ Since VS Code does not support MCP natively yet, you must use an extension:
 3. Click **Add New MCP Server**.
 4. Use the following configuration:
    - **Name**: `notebooklm`
-   - **Command**: `npx -y notebook-mcp-server start`
+   - **Command**: `npx -y notebooklm-mcp-server start`
 
 #### Option B: Using [MCP Client](https://marketplace.visualstudio.com/items?itemName=stefan-mcp.mcp-client)
 
@@ -117,7 +117,7 @@ Since VS Code does not support MCP natively yet, you must use an extension:
    "mcp.servers": {
      "notebooklm": {
        "command": "npx",
-       "args": ["-y", "notebook-mcp-server", "start"]
+       "args": ["-y", "notebooklm-mcp-server", "start"]
      }
    }
    ```
@@ -129,7 +129,7 @@ Since VS Code does not support MCP natively yet, you must use an extension:
    ```json
    "notebooklm": {
      "command": "npx",
-     "args": ["-y", "notebook-mcp-server", "start"]
+     "args": ["-y", "notebooklm-mcp-server", "start"]
    }
    ```
 
@@ -138,7 +138,7 @@ Since VS Code does not support MCP natively yet, you must use an extension:
 Run the following command in your terminal to add the notebooklm skill:
 
 ```bash
-gemini mcp add notebooklm -- npx -y notebook-mcp-server start
+gemini mcp add notebooklm -- npx -y notebooklm-mcp-server start
 ```
 
 ---
@@ -148,7 +148,7 @@ gemini mcp add notebooklm -- npx -y notebook-mcp-server start
 Add it instantly to Claude Code:
 
 ```bash
-claude skill add notebooklm -- "npx -y notebook-mcp-server start"
+claude skill add notebooklm -- "npx -y notebooklm-mcp-server start"
 ```
 
 ---
