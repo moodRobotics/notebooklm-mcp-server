@@ -39,12 +39,15 @@ function parseTimestamp(tsArray: any): string | null {
   }
 }
 
+export type CookieProvider = () => string;
+
 export class NotebookLMClient {
   private client: AxiosInstance;
   private csrfToken: string | null = null;
   private sessionId: string | null = null;
   private initialized = false;
   private reqidCounter: number;
+  private cookieProvider?: CookieProvider;
 
   constructor(cookies: string) {
     this.reqidCounter = Math.floor(Math.random() * 900000 + 100000);
@@ -60,6 +63,44 @@ export class NotebookLMClient {
         'X-Same-Domain': '1',
       },
     });
+  }
+
+  /**
+   * Update cookies on this client instance (e.g. after re-authentication).
+   * Resets initialization so the next call re-fetches the CSRF token.
+   */
+  updateCookies(cookies: string): void {
+    this.client.defaults.headers['Cookie'] = cookies;
+    this.initialized = false;
+    this.csrfToken = null;
+    this.sessionId = null;
+  }
+
+  /**
+   * Set a cookie provider function that will be called to reload cookies
+   * from disk when authentication fails.
+   */
+  setCookieProvider(provider: CookieProvider): void {
+    this.cookieProvider = provider;
+  }
+
+  /**
+   * Try to reload cookies from the cookie provider (e.g. from auth.json on disk).
+   * Returns true if cookies were successfully reloaded.
+   */
+  private tryReloadCookies(): boolean {
+    if (!this.cookieProvider) return false;
+    try {
+      const newCookies = this.cookieProvider();
+      if (newCookies) {
+        this.updateCookies(newCookies);
+        console.error('[NotebookLM] Reloaded cookies from disk.');
+        return true;
+      }
+    } catch (e: any) {
+      console.error('[NotebookLM] Failed to reload cookies from disk:', e.message);
+    }
+    return false;
   }
 
   /**
@@ -174,7 +215,9 @@ export class NotebookLMClient {
         error.response?.status === 403;
 
       if (isAuthError && _retryCount < 2) {
-        console.error(`[NotebookLM] Auth failure. Refreshing tokens (attempt ${_retryCount + 1})...`);
+        console.error(`[NotebookLM] Auth failure. Reloading cookies (attempt ${_retryCount + 1})...`);
+        // Try to reload cookies from disk (user may have run auth in another process)
+        this.tryReloadCookies();
         this.initialized = false;
         await this.init();
         return this.callRpc(rpcId, params, sourcePath, timeout, _retryCount + 1);
@@ -1200,7 +1243,8 @@ export class NotebookLMClient {
     notebookId: string,
     queryText: string,
     sourceIds?: string[],
-    conversationId?: string
+    conversationId?: string,
+    _retryCount = 0
   ): Promise<any> {
     await this.init();
 
@@ -1243,15 +1287,38 @@ export class NotebookLMClient {
     // Use the STREAMING QUERY ENDPOINT (different from batchexecute!)
     const url = `${BASE_URL}${QUERY_PATH}?${qs}`;
 
-    const response = await this.client.post(url, body, {
-      timeout: 120000,
-    });
+    try {
+      const response = await this.client.post(url, body, {
+        timeout: 120000,
+      });
 
-    const answer = this.parseQueryResponse(response.data);
-    return {
-      answer,
-      conversation_id: cid,
-    };
+      const answer = this.parseQueryResponse(response.data);
+      return {
+        answer,
+        conversation_id: cid,
+      };
+    } catch (error: any) {
+      const isAuthError =
+        error instanceof AuthenticationError ||
+        error.response?.status === 401 ||
+        error.response?.status === 403;
+
+      if (isAuthError && _retryCount < 2) {
+        console.error(`[NotebookLM] Query auth failure. Reloading cookies (attempt ${_retryCount + 1})...`);
+        this.tryReloadCookies();
+        this.initialized = false;
+        await this.init();
+        return this.query(notebookId, queryText, sourceIds, conversationId, _retryCount + 1);
+      }
+
+      if (isAuthError) {
+        throw new AuthenticationError(
+          'Authentication failed. Please run: notebooklm-mcp-server auth'
+        );
+      }
+
+      throw error;
+    }
   }
 
   /**

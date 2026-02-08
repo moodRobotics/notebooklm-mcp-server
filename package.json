@@ -1,6 +1,6 @@
 {
   "name": "notebooklm-mcp-server",
-  "version": "3.0.0",
+  "version": "3.0.2",
   "description": "Node.js Model Context Protocol server for Google NotebookLM",
   "type": "module",
   "repository": {
@@ -28,8 +28,16 @@
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
     "auth": "ts-node src/auth-cli.ts",
-    "example:workflow": "ts-node examples/workflow.ts",
-    "example:local": "ts-node examples/local-files.ts",
+    "example:workflow": "tsx examples/workflow.ts",
+    "example:local": "tsx examples/local-files.ts",
+    "test:local": "tsx examples/test-parts.ts",
+    "test:auth": "tsx examples/test-parts.ts auth",
+    "test:init": "tsx examples/test-parts.ts init",
+    "test:list": "tsx examples/test-parts.ts list",
+    "test:create": "tsx examples/test-parts.ts create",
+    "test:sources": "tsx examples/test-parts.ts sources",
+    "test:query": "tsx examples/test-parts.ts query",
+    "test:full": "tsx examples/test-parts.ts full",
     "lint": "eslint src/**/*.ts"
   },
   "dependencies": {
@@ -50,6 +58,7 @@
     "@types/pdf-parse": "^1.1.5",
     "@types/uuid": "^9.0.8",
     "ts-node": "^10.9.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.0.0"
   },
   "engines": {

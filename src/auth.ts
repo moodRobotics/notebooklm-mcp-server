@@ -83,10 +83,32 @@ export class AuthManager {
     }
 
     if (onStatus) onStatus('Extracting secure session cookies...');
-    const cookies = await context.cookies();
-    const cookieString = cookies
-      .map(c => `${c.name}=${c.value}`)
+    
+    // CRITICAL: Filter cookies to only those that match notebooklm.google.com
+    // Playwright's context.cookies() without URL returns ALL cookies from ALL domains
+    // (including accounts.google.com, youtube.com, etc.), causing duplicate cookie names
+    // and conflicting session values. CDP's Network.getCookies (used by Python) only
+    // returns cookies for the current page URL. We match that behavior here.
+    const allCookies = await context.cookies('https://notebooklm.google.com');
+    
+    // Deduplicate by name (keep last value, like browsers do)
+    const cookieMap = new Map<string, string>();
+    for (const c of allCookies) {
+      cookieMap.set(c.name, c.value);
+    }
+    
+    const cookieString = Array.from(cookieMap.entries())
+      .map(([name, value]) => `${name}=${value}`)
       .join('; ');
+
+    // Validate that required session cookies are present
+    const REQUIRED_COOKIES = ['SID', 'HSID', 'SSID', 'APISID', 'SAPISID'];
+    const missingCookies = REQUIRED_COOKIES.filter(name => !cookieMap.has(name));
+    if (missingCookies.length > 0) {
+      console.error(`Warning: Missing required cookies: ${missingCookies.join(', ')}`);
+    }
+
+    console.error(`Extracted ${cookieMap.size} unique cookies for notebooklm.google.com`);
 
     const authData = {
       cookies: cookieString,

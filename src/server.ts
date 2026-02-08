@@ -8,7 +8,7 @@ import { NotebookLMClient } from "./client.js";
 import { AuthManager } from "./auth.js";
 import chalk from "chalk";
 
-const VERSION = "3.0.0";
+const VERSION = "3.0.2";
 
 const server = new Server(
   {
@@ -23,15 +23,25 @@ const server = new Server(
 );
 
 let client: NotebookLMClient;
+const authManager = new AuthManager();
+
+/**
+ * Read cookies from disk (auth.json). Used as cookie provider for the client
+ * so it can automatically reload cookies when authentication expires.
+ */
+function loadCookiesFromDisk(): string {
+  return process.env.NOTEBOOKLM_COOKIES || authManager.getSavedCookies();
+}
 
 // Initialize client from saved auth or environment
 try {
-  const auth = new AuthManager();
-  const cookies = process.env.NOTEBOOKLM_COOKIES || auth.getSavedCookies();
+  const cookies = loadCookiesFromDisk();
   client = new NotebookLMClient(cookies);
+  client.setCookieProvider(loadCookiesFromDisk);
 } catch (error) {
-  console.error(chalk.yellow("Warning: No session data found. Please run 'notebooklm-mcp-auth' to log in."));
+  console.error(chalk.yellow("Warning: No session data found. Please run 'notebooklm-mcp-server auth' to log in."));
   client = new NotebookLMClient("");
+  client.setCookieProvider(loadCookiesFromDisk);
 }
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -439,7 +449,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       // ===================== Auth =====================
       {
         name: "refresh_auth",
-        description: "Refresh Google Session cookies (interactive browser)",
+        description: "Reload authentication cookies from disk. Run 'notebooklm-mcp-server auth' in a terminal first if cookies are expired, then call this tool to pick up the new cookies.",
         inputSchema: { type: "object", properties: {} },
       },
     ],
@@ -699,11 +709,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       // ===================== Auth =====================
       case "refresh_auth": {
-        const auth = new AuthManager();
-        await auth.runAuthentication();
-        const newCookies = auth.getSavedCookies();
-        client = new NotebookLMClient(newCookies);
-        return { content: [{ type: "text", text: "Authentication refreshed. Tools should work now." }] };
+        try {
+          const newCookies = loadCookiesFromDisk();
+          client.updateCookies(newCookies);
+          return { content: [{ type: "text", text: "Cookies reloaded from disk. If authentication still fails, run 'notebooklm-mcp-server auth' in a terminal first." }] };
+        } catch (e: any) {
+          return { 
+            content: [{ type: "text", text: `No saved cookies found. Please run 'notebooklm-mcp-server auth' in a terminal first, then call refresh_auth again. Error: ${e.message}` }],
+            isError: true,
+          };
+        }
       }
 
       default:
