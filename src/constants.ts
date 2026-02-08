@@ -33,7 +33,7 @@ export const RPC_IDS = {
 };
 
 export const BASE_URL = "https://notebooklm.google.com";
-export const BATCH_EXECUTE_PATH = "/_/NotebookLMApp/wob/v1/batchexecute";
-export const QUERY_PATH = "/_/NotebookLMApp/rt/c";
+export const BATCH_EXECUTE_PATH = "/_/LabsTailwindUi/data/batchexecute";
+export const QUERY_PATH = "/_/LabsTailwindUi/data/batchexecute";
 
 export const DEFAULT_QUERY_TIMEOUT = 120000; // 120s

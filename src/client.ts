@@ -25,6 +25,7 @@ export class NotebookLMClient {
   private client: AxiosInstance;
   private csrfToken: string | null = null;
   private sessionId: string | null = null;
+  private initialized = false;
 
   constructor(cookies: string) {
     this.client = axios.create({
@@ -38,40 +39,75 @@ export class NotebookLMClient {
   }
 
   /**
-   * Internal RPC executor with the original, working legacy format.
+   * Initialize CSRF token and session ID from the main page.
+   * Must be called before any RPC call.
+   */
+  async init(): Promise<void> {
+    if (this.initialized) return;
+    try {
+      const response = await this.client.get('/');
+      const csrfMatch = response.data.match(/"SNlM0e"\s*:\s*"([^"]+)"/);
+      if (csrfMatch) {
+        this.csrfToken = csrfMatch[1];
+      }
+      const sidMatch = response.data.match(/"FdrFJe"\s*:\s*"([^"]+)"/);
+      if (sidMatch) {
+        this.sessionId = sidMatch[1];
+      }
+      this.initialized = true;
+      if (!this.csrfToken) {
+        console.error('[NotebookLM] Warning: Could not extract CSRF token. Authentication may be expired.');
+      }
+    } catch (e: any) {
+      console.error('[NotebookLM] Failed to initialize session:', e.message);
+    }
+  }
+
+  /**
+   * Internal RPC executor using the standard Google batchexecute format.
    */
   private async callRpc(rpcId: string, params: any[], _retryCount = 0): Promise<any> {
-    // Reverting to the simpler format that proved stable in v1.1.2
-    const fReq = JSON.stringify([null, JSON.stringify(params)]);
+    // Ensure we have CSRF token before making any call
+    await this.init();
+
+    // Standard Google batchexecute envelope: [[[rpcId, paramsJson, null, "generic"]]]
+    const paramsJson = JSON.stringify(params);
+    const fReq = JSON.stringify([[[rpcId, paramsJson, null, "generic"]]]);
+    
     const body = new URLSearchParams();
     body.append('f.req', fReq);
     if (this.csrfToken) {
       body.append('at', this.csrfToken);
     }
 
+    const queryParams: Record<string, string> = {
+      'rpcids': rpcId,
+      'source-path': '/',
+      'bl': 'boq_labs-tailwind-frontend_20260108.06_p0',
+      'hl': 'en',
+      '_reqid': Math.floor(Math.random() * 900000 + 100000).toString(),
+      'rt': 'c'
+    };
+    if (this.sessionId) {
+      queryParams['f.sid'] = this.sessionId;
+    }
+
     try {
       const response = await this.client.post(BATCH_EXECUTE_PATH, body.toString(), {
-        params: {
-          'rpcids': rpcId,
-          'source-path': '/',
-          'f.sid': this.sessionId,
-          'bl': 'boq_labs-tailwind-frontend_20260108.06_p0',
-          'hl': 'en',
-          '_reqid': Math.floor(Math.random() * 1000000).toString(),
-          'rt': 'c'
-        }
+        params: queryParams
       });
 
-      // Special case: Google might return success but the body indicates an internal auth failure
-      // (usually represented by specific error codes in the response array)
-      if (typeof response.data === 'string' && response.data.includes('session expired')) {
-        throw new AuthenticationError('Session expired in response body');
-      }
-
       const rpcResult = this.parseBatchResponse(response.data, rpcId);
-      if (rpcResult === null && typeof response.data === 'string' && response.data.length > 0 && !response.data.includes(rpcId)) {
-        // Response received but doesn't contain the expected RPC data - likely an auth/session issue
-        throw new AuthenticationError('Invalid session or session expired (RPC data not found)');
+      
+      if (rpcResult === null) {
+        const dataStr = typeof response.data === 'string' ? response.data : '';
+        // Check for error envelope from Google
+        if (dataStr.includes('"er"')) {
+          throw new AuthenticationError('Google returned an error. Session may be expired.');
+        }
+        if (!dataStr.includes(rpcId)) {
+          throw new AuthenticationError('Invalid session or session expired (RPC ID not in response)');
+        }
       }
       return rpcResult;
     } catch (error: any) {
@@ -81,13 +117,16 @@ export class NotebookLMClient {
         error.response?.status === 403;
 
       if (isAuthError && _retryCount < 2) {
-        console.error(`Auth failure detected. Attempting token recovery (Attempt ${_retryCount + 1})...`);
-        await this.refreshTokens();
+        console.error(`[NotebookLM] Auth failure. Refreshing tokens (attempt ${_retryCount + 1})...`);
+        this.initialized = false;
+        await this.init();
         return this.callRpc(rpcId, params, _retryCount + 1);
       }
       
       if (isAuthError) {
-        throw new AuthenticationError('Authentication failed after retries. Please run notebook-mcp-auth.');
+        throw new AuthenticationError(
+          'Authentication failed. Please run: notebooklm-mcp-server auth'
+        );
       }
       
       throw error;
@@ -97,23 +136,72 @@ export class NotebookLMClient {
   /**
    * Parses the weird batchexecute envelope format.
    */
+  /**
+   * Parses the Google batchexecute chunked response format.
+   * Response format: )]}'\n<bytecount>\n[["wrb.fr","rpcId","<json>",null,...]]\n...
+   */
   private parseBatchResponse(data: any, rpcId: string): any {
-    // Google's format is basically a set of chunked JSON arrays
-    // We need to extract the payload for the given rpcId
     try {
-      const dataStr = typeof data === 'string' ? data : JSON.stringify(data);
+      let dataStr = typeof data === 'string' ? data : JSON.stringify(data);
+      
+      // Strip anti-XSSI prefix
+      if (dataStr.startsWith(")]}'\n")) {
+        dataStr = dataStr.substring(5);
+      } else if (dataStr.startsWith(")]}'\r\n")) {
+        dataStr = dataStr.substring(6);
+      }
+
+      // Parse chunked format: alternating byte_count + json_payload lines
       const lines = dataStr.split('\n');
-      for (const line of lines) {
-        if (line.includes(rpcId)) {
-          const match = line.match(/\["wobti",\s*"(.*?)",\s*"(.*?)"\]/);
-          if (match) {
-            const innerJson = match[2].replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-            return JSON.parse(innerJson);
+      let i = 0;
+      while (i < lines.length) {
+        const line = lines[i].trim();
+        if (!line) { i++; continue; }
+
+        let jsonLine: string | null = null;
+        
+        // Check if this is a byte count (next line is the JSON)
+        if (/^\d+$/.test(line)) {
+          i++;
+          if (i < lines.length) {
+            jsonLine = lines[i].trim();
+          }
+        } else {
+          jsonLine = line;
+        }
+
+        if (jsonLine) {
+          try {
+            const chunk = JSON.parse(jsonLine);
+            // chunk is an array of items like ["wrb.fr", rpcId, data, ...]
+            const items = Array.isArray(chunk) && Array.isArray(chunk[0]) ? chunk : [chunk];
+            for (const item of items) {
+              if (!Array.isArray(item) || item.length < 3) continue;
+              
+              // Error response
+              if (item[0] === 'er' && item[1] === rpcId) {
+                throw new Error(`Google RPC error for ${rpcId}: ${JSON.stringify(item[2])}`);
+              }
+              
+              // Success response
+              if (item[0] === 'wrb.fr' && item[1] === rpcId) {
+                const resultData = item[2];
+                if (typeof resultData === 'string') {
+                  return JSON.parse(resultData);
+                }
+                return resultData;
+              }
+            }
+          } catch (parseErr: any) {
+            if (parseErr.message?.startsWith('Google RPC error')) throw parseErr;
+            // Not valid JSON, skip
           }
         }
+        i++;
       }
-    } catch (e) {
-      console.error('Failed to parse RPC response', e);
+    } catch (e: any) {
+      if (e.message?.startsWith('Google RPC error')) throw e;
+      console.error('[NotebookLM] Failed to parse RPC response:', e.message);
     }
     return null;
   }
@@ -357,6 +445,9 @@ export class NotebookLMClient {
     sourceIds?: string[],
     conversationId?: string
   ): Promise<any> {
+    // Ensure tokens are available
+    await this.init();
+    
     const cid = conversationId || uuidv4();
     const sources = sourceIds ? sourceIds.map(id => [[id]]) : [];
     
@@ -473,13 +564,10 @@ export class NotebookLMClient {
   }
 
   /**
-   * Fetches the CSRF token (at) from the main page if not present.
+   * Force re-fetch of CSRF token and session ID.
    */
   async refreshTokens(): Promise<void> {
-    const response = await this.client.get('/');
-    const match = response.data.match(/"SNlM0e":"(.*?)"/);
-    if (match) {
-      this.csrfToken = match[1];
-    }
+    this.initialized = false;
+    await this.init();
   }
 }

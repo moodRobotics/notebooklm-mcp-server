@@ -11,7 +11,7 @@ import chalk from "chalk";
 const server = new Server(
   {
     name: "notebooklm-mcp-server",
-    version: "1.1.8",
+    version: "2.0.0",
   },
   {
     capabilities: {
@@ -419,7 +419,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("NotebookLM MCP Server v1.1.8 running on stdio");
+  console.error("NotebookLM MCP Server v2.0.0 running on stdio");
 }
 
 main().catch((error) => {
