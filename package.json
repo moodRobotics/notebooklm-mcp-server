@@ -1,6 +1,6 @@
 {
   "name": "notebooklm-mcp-server",
-  "version": "3.0.4",
+  "version": "3.0.5",
   "description": "Node.js Model Context Protocol server for Google NotebookLM",
   "type": "module",
   "repository": {
@@ -23,7 +23,8 @@
     "notebooklm-mcp-auth": "dist/auth-cli.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "node build.js",
+    "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
@@ -57,6 +58,7 @@
     "@types/ora": "^3.2.0",
     "@types/pdf-parse": "^1.1.5",
     "@types/uuid": "^9.0.8",
+    "esbuild": "^0.27.3",
     "ts-node": "^10.9.0",
     "tsx": "^4.21.0",
     "typescript": "^5.0.0"
