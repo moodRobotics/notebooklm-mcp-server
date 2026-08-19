@@ -1,43 +1,59 @@
-# Project Roadmap: notebook-mcp-server
+# Project Roadmap: notebooklm-mcp-server
 
-The mission of `notebook-mcp-server` is to provide the most robust, Node.js-native bridge to Google NotebookLM, enabling seamless integration with any MCP-compatible environment.
+## ✅ Shipped
 
-## 🟢 Phase 1: Foundation & Stability (Q1 2026)
-*Goal: Solidify the core RPC communication and basic toolset.*
-- [x] Reverse-engineer core `batchexecute` RPC protocol.
-- [x] Port essential tools: `notebook_list`, `notebook_create`, `notebook_delete`.
-- [x] Implement initial Playwright-based authentication.
-- [ ] Add comprehensive error handling for token expiration.
-- [ ] Implement robust retry logic for network timeouts.
-- [ ] Unit testing for RPC payload builders and parsers.
+### v3.0.x — Foundation
 
-## 🟡 Phase 2: Enhanced Source Management
-*Goal: Expand the types of data that can be ingested.*
-- [ ] Support for **YouTube URL** ingestion with transcript extraction.
-- [ ] Support for **Local File** uploads (Direct PDF/Markdown parsing).
-- [ ] Batch source addition (uploading multiple files in one command).
-- [ ] Source sync status monitoring (polling for processing completion).
-- [ ] Source deletion and renaming tools.
+- [x] Reverse-engineered batchexecute RPC layer
+- [x] Notebook CRUD (`notebook_list/create/get/rename/delete`)
+- [x] Sources: URL, YouTube, pasted text, Google Drive, local PDF/TXT/MD
+- [x] Grounded chat (`notebook_query`) with conversation follow-ups
+- [x] Deep/fast research pipeline (start → poll → import)
+- [x] Studio: audio, video, report, flashcards, infographic, slide deck, data table
+- [x] Mind maps (generate, save, list, delete)
+- [x] Playwright-based interactive auth
+- [x] npm release with esbuild bundle + auto-update on startup
+- [x] `__Secure-1PSIDTS` capture at login + RotateCookies auto-recovery at runtime (v3.0.8)
+- [x] Multi-language documentation (EN/ES/FR/PT/DE)
 
-## 🟠 Phase 3: Advanced Interaction & Memory
-*Goal: Improve the AI's ability to reason over data.*
-- [ ] **Streaming Responses**: Enable real-time text streaming for `notebook_query`.
-- [ ] **Context Management**: Auto-trimming conversation history for very long chats.
-- [ ] **Research Mode Integration**: Full implementation of "Deep Research" with status polling.
-- [ ] **Mind Map Generation**: Expose the NotebookLM mind map creation as a tool.
+### v3.1.0 — Gemini Notebook feature wave
 
-## 🔴 Phase 4: Developer & User Experience
-*Goal: Make the server easier to deploy and manage.*
-- [ ] **NPM Global Release**: Publish `notebook-mcp-server` to npmjs.com.
-- [ ] **Interactive CLI**: Improve `notebook-mcp-auth` with better terminal progress bars and status checks.
-- [ ] **Multi-Account Support**: Allow switching between different browser profiles/cookies.
-- [ ] **Docker Support**: Containerized version of the server for headless environments.
+- [x] Notes CRUD (`note_create/list/update/delete`)
+- [x] Interactive quizzes (`quiz_create`) with quantity/difficulty options
+- [x] Artifact content retrieval (`artifact_content_get` — quiz/flashcards HTML, mind-map trees)
+- [x] Artifact rename + export to Google Drive (Docs/Sheets)
+- [x] Notebook sharing: public link toggle, collaborator management, share status
+- [x] Chat history read/delete; fixed `chat_configure` wire format
+- [x] Source insights: per-source AI guide, rename, freshness check
+- [x] Notebook guide (`notebook_summarize`) + AI prompt suggestions (`prompts_suggest`)
+- [x] Studio option enums exposed: audio format/length, video style, infographic orientation, quiz/flashcards quantity+difficulty
+- [x] Payload migration for Gemini-3.5-era backends (nested template block on create/add-source)
 
-## 🚀 Phase 5: Future Horizons
-*Goal: Explore broader integrations.*
-- [ ] Plugin system for custom post-processing of AI answers.
-- [ ] Integration with other "BoQ" services (Google Docs/Keep) if APIs available.
-- [ ] Web-based Dashboard for managing saved cookies and server status.
+## 🚧 Next (v3.2)
+
+- [ ] Batch source addition (multiple files/URLs in one call)
+- [ ] Slide revision via natural-language prompts (`REVISE_SLIDE` RPC is mapped)
+- [ ] Artifact media download to local files (audio/video/PPTX/PDF)
+- [ ] Source labels / topic grouping (RPCs mapped: create/list/update/delete label)
+- [ ] Streaming responses for `notebook_query`
+- [ ] Retry failed artifacts in place (`RETRY_ARTIFACT`)
+- [ ] User settings tools (output language)
+
+## 🔭 Later
+
+- [ ] Multi-account support (switch cookie profiles)
+- [ ] Docker image for headless environments
+- [ ] Unit tests for RPC payload builders/parsers
+- [ ] Save chat answers as citation-rich notes
+
+## ⛔ Blocked on Google
+
+These Gemini Notebook capabilities have **no public/reverse-engineered API surface yet**; they ship when RPCs become observable:
+
+- Code execution over sources (announced with the July 2026 Gemini Notebook rename; Ultra/enterprise rollout)
+- "Deliverables" generation workflows
+- Notebooks in Google Search AI Mode
 
 ---
-*Note: This roadmap is subject to change based on updates to Google's internal APIs.*
+
+*Roadmap subject to change based on Google API updates — this project tracks a private, unversioned API.*

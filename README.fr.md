@@ -1,101 +1,100 @@
-<p align="center">
-  <img src="./notebooklm_mcp_logo.png" width="200" alt="Logo Notebook-mcp-server">
-</p>
+<div align="center">
+  <img src="./notebooklm_mcp_logo.png" width="200" alt="NotebookLM MCP Server logo">
 
-<h1 align="center">Serveur MCP NotebookLM</h1>
+  <h1>NotebookLM MCP Server</h1>
 
-<p align="center">
-  <b>Laissez vos agents IA discuter directement avec Google NotebookLM pour des réponses sans hallucination.</b>
-</p>
+  <p><b>Donnez à vos agents IA le contrôle total de Google Gemini Notebook (anciennement NotebookLM) : réponses ancrées dans vos sources, recherche approfondie, podcasts, quiz et plus encore — 47 outils, zéro hallucination.</b></p>
 
-<p align="center">
-  <a href="README.md">English</a> • 
-  <a href="README.es.md">Español</a> • 
-  <b>Français</b> • 
-  <a href="README.pt.md">Português</a> • 
-  <a href="README.de.md">Deutsch</a>
-</p>
+  <p>
+    <a href="./README.md">English</a> •
+    <a href="./README.es.md">Español</a> •
+    <b>Français</b> •
+    <a href="./README.pt.md">Português</a> •
+    <a href="./README.de.md">Deutsch</a>
+  </p>
 
-<p align="center">
-  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"></a>
-  <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/MCP-Model%20Context%20Protocol-orange?style=for-the-badge" alt="MCP"></a>
-  <a href="https://www.npmjs.com/package/notebooklm-mcp-server"><img src="https://img.shields.io/badge/NPM-CB3837?style=for-the-badge&logo=npm&logoColor=white" alt="NPM"></a>
-</p>
+  <p>
+    <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
+    <img src="https://img.shields.io/badge/MCP-Model_Context_Protocol-8A2BE2?style=for-the-badge" alt="MCP">
+    <a href="https://www.npmjs.com/package/notebooklm-mcp-server"><img src="https://img.shields.io/npm/v/notebooklm-mcp-server?style=for-the-badge&logo=npm&color=CB3837" alt="npm version"></a>
+  </p>
+  <p>
+    <img src="https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
+    <img src="https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white" alt="macOS">
+    <img src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux">
+  </p>
+  <p>
+    <img src="https://img.shields.io/badge/Claude_Code-D97757?style=for-the-badge&logo=claude&logoColor=white" alt="Claude Code">
+    <img src="https://img.shields.io/badge/Antigravity-5E35B1?style=for-the-badge" alt="Antigravity">
+    <img src="https://img.shields.io/badge/Gemini_CLI-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini CLI">
+    <img src="https://img.shields.io/badge/Cursor-000000?style=for-the-badge" alt="Cursor">
+    <img src="https://img.shields.io/badge/Windsurf-58C4DC?style=for-the-badge" alt="Windsurf">
+    <img src="https://img.shields.io/badge/Cline-9C27B0?style=for-the-badge" alt="Cline">
+  </p>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
-  <img src="https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white" alt="macOS">
-  <img src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux">
-</p>
-
-<p align="center">
-  <a href="https://anthropic.com"><img src="https://img.shields.io/badge/Claude%20Code-Skill-blueviolet?style=for-the-badge" alt="Claude Code"></a>
-  <a href="https://geminicli.com/"><img src="https://img.shields.io/badge/Gemini%20CLI-Skill-blueviolet?style=for-the-badge" alt="Gemini CLI"></a>
-  <img src="https://img.shields.io/badge/Cursor-000000?style=for-the-badge&logo=cursor&logoColor=white" alt="Cursor">
-  <img src="https://img.shields.io/badge/Windsurf-00AEEF?style=for-the-badge" alt="Windsurf">
-  <img src="https://img.shields.io/badge/Cline-FF5733?style=for-the-badge" alt="Cline">
-</p>
-
-<p align="center">
-  <a href="#installation">Installation</a> • 
-  <a href="#authentification">Authentification</a> • 
-  <a href="#démarrage-rapide-claude-desktop">Démarrage Rapide</a> • 
-  <a href="#compétence-claude-code">Claude Code</a> • 
-  <a href="#documentation">Documentation</a> •
-  <a href="#développement">Développement</a>
-</p>
-
-## La Solution
-
-Le **Serveur MCP NotebookLM** apporte la puissance de Google NotebookLM directement dans votre flux de travail augmenté par l'IA. Construit nativement en **TypeScript** via le Model Context Protocol, il permet aux agents de lire, rechercher et gérer vos carnets de notes comme s'il s'agissait de fichiers locaux.
+  <p>
+    <a href="#-installation">Installation</a> •
+    <a href="#-authentification">Authentification</a> •
+    <a href="#-connectez-votre-client-ia">Connectez votre client IA</a> •
+    <a href="#-référence-des-outils">Référence des outils</a> •
+    <a href="#-recettes">Recettes</a> •
+    <a href="#-développement">Développement</a>
+  </p>
+</div>
 
 ---
 
+## 💡 Qu'est-ce que c'est ?
+
+**Gemini Notebook** de Google (rebaptisé depuis NotebookLM en juillet 2026) est le meilleur moteur de réponses ancrées du marché : il ne répond qu'à partir des sources que vous lui fournissez, citations à l'appui. Ce serveur MCP met cette puissance entre les mains de vos agents IA — Claude, Gemini, Antigravity, Cursor et tout autre client MCP — pour qu'ils puissent créer des notebooks, lancer des Deep Research, générer des podcasts, des vidéos, des quiz, des flashcards, des rapports et des cartes mentales, prendre des notes et partager les résultats avec votre équipe. **Le tout par programmation, avec zéro hallucination.**
+
+> [!NOTE]
+> **NotebookLM s'appelle désormais Gemini Notebook.** Google a renommé le produit le 16 juillet 2026 (voir [notebook.google](https://notebook.google/)). Même produit, mêmes notebooks, même surface d'API — ce serveur continue de fonctionner sans changement, et le paquet npm conserve son nom `notebooklm-mcp-server`.
+
 ## 🚀 Installation
 
-### 1. Installation Globale (Recommandée)
-
-Vous pouvez installer le serveur directement depuis NPM :
+### Option 1 — Installation globale (recommandée)
 
 ```bash
 npm install -g notebooklm-mcp-server
 ```
 
 > [!NOTE]
-> **Mise à jour automatique** : Le serveur vérifie automatiquement les nouvelles versions au démarrage. Si une mise à jour existe, elle s'installera d'elle-même et vous demandera de redémarrer pour garantir que vous disposez toujours des derniers correctifs Google.
+> Le serveur vérifie les mises à jour au démarrage et se maintient à jour automatiquement.
 
-### 2. Utilisation directe avec NPX (Zéro-Config)
-
-Si vous ne souhaitez pas l'installer globalement, vous pouvez l'exécuter directement :
+### Option 2 — Zéro installation avec NPX
 
 ```bash
-npx notebooklm-mcp-server auth   # Pour se connecter
-npx notebooklm-mcp-server start  # Pour lancer le serveur
+npx -y notebooklm-mcp-server auth   # authenticate
+npx -y notebooklm-mcp-server start  # run the server
 ```
-
----
 
 ## 🔑 Authentification
 
-Avant d'utiliser le serveur, vous devez le lier à votre compte Google. Cette version utilise une session de navigateur sécurisée et persistante :
+1. Lancez la connexion interactive (ouvre une fenêtre Chromium) :
 
-1. Lancez la commande d'authentification :
-   ```bash
-   npx notebooklm-mcp-server auth
-   ```
-2. Une fenêtre de navigateur s'ouvrira. Connectez-vous avec votre compte Google.
-3. Fermez le navigateur une fois que vous voyez vos carnets de notes. Votre session est maintenant enregistrée localement en toute sécurité.
+```bash
+npx notebooklm-mcp-server auth
+```
+
+2. Connectez-vous avec votre compte Google. Lorsque la liste des notebooks apparaît, les cookies de session (y compris le jeton rotatif `__Secure-1PSIDTS` de Google) sont capturés et enregistrés dans `~/.notebooklm-mcp/auth.json`.
+
+3. C'est terminé — le serveur charge la session automatiquement et rafraîchit le jeton rotatif tout seul.
 
 > [!TIP]
-> **Session expirée ?** Si votre agent reçoit des erreurs d'authentification, demandez-lui simplement d'exécuter la commande `npx notebooklm-mcp-server refresh_auth`. Cela ouvrira automatiquement le navigateur pour que vous puissiez renouveler la session sans quitter votre chat.
+> Si la session vient à expirer, relancez `npx notebooklm-mcp-server auth` dans un terminal, puis appelez l'outil MCP `refresh_auth` (ou redémarrez simplement votre client) pour récupérer les nouveaux cookies sans rien reconfigurer.
 
----
+## ⚡ Connectez votre client IA
 
-## ⚡ Démarrage Rapide
+### 🤖 Claude Code
 
-### 🤖 Claude Desktop
+```bash
+claude mcp add notebooklm -- npx -y notebooklm-mcp-server start
+```
 
-Ajoutez ce qui suit à votre fichier `claude_desktop_config.json` :
+### 💬 Claude Desktop
+
+Ajoutez ceci à `claude_desktop_config.json` (Paramètres → Développeur → Modifier la configuration) :
 
 ```json
 {
@@ -108,43 +107,12 @@ Ajoutez ce qui suit à votre fichier `claude_desktop_config.json` :
 }
 ```
 
-### 💻 Visual Studio Code
+### 🌌 Antigravity CLI
 
-Comme VS Code ne supporte pas encore nativement le MCP, vous devez utiliser une extension :
+La CLI d'Antigravity gère les serveurs MCP via un fichier de configuration JSON :
 
-#### Option A : Utiliser [Cline](https://marketplace.visualstudio.com/items?itemName=saoudrizwan.claude-dev) (Recommandé)
-
-1. Ouvrez les **Paramètres de Cline** dans VS Code.
-2. Faites défiler jusqu'à la section **MCP Servers**.
-3. Cliquez sur **Add New MCP Server**.
-4. Utilisez la configuration suivante :
-   - **Nom** : `notebooklm`
-   - **Commande** : `npx -y notebooklm-mcp-server start`
-
-#### Option B : Utiliser [MCP Client](https://marketplace.visualstudio.com/items?itemName=stefan-mcp.mcp-client)
-
-1. Installez l'extension depuis le Marketplace.
-2. Ouvrez votre `settings.json` VS Code.
-3. Ajoutez le serveur sous `mcp.servers` :
-   ```json
-   "mcp.servers": {
-     "notebooklm": {
-       "command": "npx",
-       "args": ["-y", "notebooklm-mcp-server", "start"]
-     }
-   }
-   ```
-
-### 🌌 Antigravity
-
-Antigravity supporte nativement le MCP. Vous pouvez ajouter le serveur en éditant votre fichier de configuration globale :
-
-1. **Localisez votre `mcp.json`** :
-   - **Windows** : `%APPDATA%\antigravity\mcp.json`
-   - **macOS** : `~/Library/Application Support/antigravity/mcp.json`
-   - **Linux** : `~/.config/antigravity/mcp.json`
-
-2. **Ajoutez le serveur** à l'objet `mcpServers` :
+- **Global :** `~/.gemini/config/mcp_config.json`
+- **Par espace de travail :** `.agents/mcp_config.json` dans votre projet
 
 ```json
 {
@@ -157,84 +125,187 @@ Antigravity supporte nativement le MCP. Vous pouvez ajouter le serveur en édita
 }
 ```
 
-3. **Redémarrez Antigravity** : Les nouveaux outils apparaîtront instantanément dans votre barre latérale.
+Tapez ensuite `/mcp` dans le panneau de saisie d'Antigravity pour ouvrir le **MCP Manager** : vérifiez l'anneau d'état de la connexion, rechargez la configuration ou inspectez les journaux — sans aucun redémarrage. Vos agents peuvent désormais citer de vraies sources dans chaque mission.
 
----
+### 🖥️ Antigravity IDE
+
+L'IDE lit les mêmes fichiers de configuration que la CLI (`~/.gemini/config/mcp_config.json` ou `.agents/mcp_config.json`). Vous pouvez aussi ouvrir le panneau **MCP Store**, choisir *Add custom server* et coller le même extrait JSON. Rechargez la liste des serveurs et les outils NotebookLM apparaissent dans la boîte à outils de l'agent.
 
 ### 💎 Gemini CLI
-
-Exécutez la commande suivante dans votre terminal pour ajouter la compétence notebooklm :
 
 ```bash
 gemini mcp add notebooklm --scope user -- npx -y notebooklm-mcp-server start
 ```
 
----
+### ⌨️ Cursor
 
-## 🤖 Compétence Claude Code
+Ajoutez ceci à `.cursor/mcp.json` dans votre projet (ou à `~/.cursor/mcp.json` pour une portée globale) :
 
-Ajoutez-la instantanément à Claude Code :
-
-```bash
-claude skill add notebooklm -- "npx -y notebooklm-mcp-server start"
+```json
+{
+  "mcpServers": {
+    "notebooklm": {
+      "command": "npx",
+      "args": ["-y", "notebooklm-mcp-server", "start"]
+    }
+  }
+}
 ```
 
----
+### 🏄 Windsurf
 
-## 📖 Documentation
+Ajoutez le même bloc `mcpServers` à `~/.codeium/windsurf/mcp_config.json`.
 
-Les outils suivants sont disponibles via ce serveur MCP :
+### 🧩 VS Code (Cline)
 
-### 📒 Gestion des Carnets de Notes
-| Outil               | Description                                           |
-| :------------------ | :---------------------------------------------------- |
-| `notebook_list`     | Liste tous les carnets de notes de votre compte.      |
-| `notebook_create`   | Crée un nouveau carnet avec un titre.                 |
-| `notebook_rename`   | Renomme un carnet existant.                           |
-| `notebook_delete`   | Supprime un carnet (Attention : Destructif).          |
+Dans Cline : **MCP Servers → Configure**, puis ajoutez le même bloc `mcpServers` que ci-dessus.
 
-### 🖇️ Gestion des Sources
-| Outil                    | Description                                              |
-| :----------------------- | :------------------------------------------------------- |
-| `notebook_add_url`       | Ajoute un site Web ou une vidéo YouTube comme source.    |
-| `notebook_add_text`      | Ajoute un contenu textuel personnalisé comme source.     |
-| `notebook_add_local_file`| Télécharge un fichier local PDF, Markdown ou Texte.      |
-| `notebook_add_drive`     | Ajoute un fichier Google Drive (Docs, Slides, etc.).     |
-| `source_delete`          | Supprime una source d'un carnet.                         |
-| `source_sync`            | Synchronise une source Drive pour obtenir la version la plus récente. |
+## 📖 Référence des outils
 
-### 🔍 Recherche & Requêtes
-| Outil               | Description                                           |
-| :------------------ | :---------------------------------------------------- |
-| `notebook_query`    | Pose une question basée sur les sources à un carnet spécifique. |
-| `research_start`    | Démarre une tâche de recherche Web/Drive.             |
-| `research_poll`     | Interroge l'état et les résultats de la recherche.    |
-| `research_import`   | Importe les résultats de recherche comme sources permanentes. |
+47 outils, regroupés par fonction. Les signatures complètes des paramètres se trouvent dans [docs/TOOLS.md](./docs/TOOLS.md).
 
-### 🎨 Studio & Génération
-| Outil                    | Description                                           |
-| :----------------------- | :---------------------------------------------------- |
-| `audio_overview_create`  | Génère un aperçu audio (podcast).                     |
-| `studio_poll`            | Vérifie l'état des artefacts audio/vidéo générés.     |
-| `mind_map_generate`      | Génère un JSON de carte mentale à partir des sources. |
+### 📒 Notebooks
+
+| Outil | Description |
+|------|-------------|
+| `notebook_list` | Lister tous les notebooks avec leurs sources et métadonnées |
+| `notebook_create` | Créer un nouveau notebook |
+| `notebook_get` | Obtenir les détails d'un notebook et les identifiants de ses sources |
+| `notebook_rename` | Renommer un notebook |
+| `notebook_delete` | Supprimer un notebook (nécessite `confirm`) |
+| `notebook_summarize` | Guide IA du notebook : résumé + questions suggérées |
+| `prompts_suggest` | Prompts suggérés par l'IA à poser sur les sources |
+
+### 🔗 Partage
+
+| Outil | Description |
+|------|-------------|
+| `notebook_share` | Activer/désactiver le lien public et/ou gérer les collaborateurs par e-mail |
+| `notebook_share_status` | Consulter la configuration de partage actuelle |
+
+### 🖇️ Sources
+
+| Outil | Description |
+|------|-------------|
+| `notebook_add_url` | Ajouter un site web ou une vidéo YouTube comme source |
+| `notebook_add_text` | Ajouter du texte collé comme source |
+| `notebook_add_drive` | Ajouter un document Google Drive comme source |
+| `notebook_add_local_file` | Téléverser un fichier local PDF / TXT / Markdown |
+| `source_get_guide` | Guide IA d'une source : résumé + sujets clés |
+| `source_rename` | Renommer une source |
+| `source_check_freshness` | Vérifier si une source URL/Drive dispose d'un contenu plus récent |
+| `source_sync` | Resynchroniser une source Drive avec le contenu le plus récent |
+| `source_delete` | Supprimer une source (nécessite `confirm`) |
+
+### 💬 Chat
+
+| Outil | Description |
+|------|-------------|
+| `notebook_query` | Poser des questions sur les sources, avec citations |
+| `chat_history_get` | Lire les échanges question/réponse de la dernière conversation |
+| `chat_history_delete` | Effacer l'historique du chat (nécessite `confirm`) |
+| `chat_configure` | Définir la persona du chat (par défaut / guide d'apprentissage / personnalisée) et la longueur des réponses |
+
+### 🔍 Recherche
+
+| Outil | Description |
+|------|-------------|
+| `research_start` | Lancer une recherche web ou Drive (rapide ≈30 s / approfondie ≈5 min) |
+| `research_poll` | Suivre la progression de la recherche et les sources découvertes |
+| `research_import` | Importer les sources découvertes dans le notebook |
+
+### 🎨 Studio
+
+| Outil | Description |
+|------|-------------|
+| `audio_overview_create` | Audio Overview façon podcast (formats : deep dive, brief, critique, debate) |
+| `video_overview_create` | Video Overview (9 styles visuels, du tableau blanc à l'anime) |
+| `report_create` | Rapport écrit à partir des sources |
+| `flashcards_create` | Flashcards (options de quantité et de difficulté) |
+| `quiz_create` | Quiz interactif (options de quantité et de difficulté) |
+| `infographic_create` | Infographie (paysage / portrait / carré) |
+| `slide_deck_create` | Diaporama |
+| `data_table_create` | Tableau de données structuré |
+| `studio_poll` | Vérifier l'état de génération de tous les artefacts |
+| `studio_delete` | Supprimer un artefact du studio |
+
+### 📦 Artefacts
+
+| Outil | Description |
+|------|-------------|
+| `artifact_content_get` | Récupérer le contenu généré (HTML des quiz/flashcards, JSON des cartes mentales) |
+| `artifact_rename` | Renommer un artefact |
+| `artifact_export` | Exporter un artefact vers Google Drive (Docs ou Sheets) |
+
+### 📝 Notes et cartes mentales
+
+| Outil | Description |
+|------|-------------|
+| `note_create` | Créer une note |
+| `note_list` | Lister toutes les notes |
+| `note_update` | Mettre à jour le contenu/titre d'une note |
+| `note_delete` | Supprimer une note (nécessite `confirm`) |
+| `mind_map_generate` | Générer une carte mentale au format JSON à partir des sources |
+| `mind_map_save` | Enregistrer une carte mentale dans le notebook |
+| `mind_map_list` | Lister les cartes mentales enregistrées |
+| `mind_map_delete` | Supprimer une carte mentale |
 
 ### ⚙️ Système
-| Outil           | Description                                                        |
-| :-------------- | :----------------------------------------------------------------- |
-| `refresh_auth`  | **Interactif** : Ouvre un navigateur pour renouveler votre session Google. À utiliser si les outils commencent à échouer. |
 
----
+| Outil | Description |
+|------|-------------|
+| `refresh_auth` | Recharger les cookies de session depuis le disque après avoir relancé `auth` |
 
-## 🛠️ Développement
+## 🧪 Recettes
 
-Pour contribuer ou compiler à partir des sources :
+De vrais prompts à coller dans n'importe quel agent connecté — il choisit les bons outils tout seul.
+
+### 🎙️ De la question de recherche au podcast
+
+> *« Fais des recherches sur les dernières avancées des batteries à électrolyte solide avec la recherche approfondie, construis un notebook nommé 'Solid State 2026' avec les meilleures sources et génère un résumé audio bref en anglais. Donne-moi le lien quand c'est prêt. »*
+
+L'agent enchaîne `notebook_create` → `research_start(mode: deep)` → `research_poll` → `research_import` → `audio_overview_create(format: brief)` → `studio_poll`, puis renvoie l'URL du notebook avec le podcast terminé.
+
+### 🎓 Kit de révision à partir de vos PDF
+
+> *« Prends les trois PDF du dossier ./lectures, mets-les dans un nouveau notebook et prépare-moi un quiz difficile plus des flashcards sur les concepts clés. Affiche-moi les questions du quiz ici. »*
+
+L'agent exécute `notebook_add_local_file` pour chaque PDF, puis `quiz_create(difficulty: hard)` + `flashcards_create`, surveille l'avancement avec `studio_poll` et extrait les questions avec `artifact_content_get`.
+
+### 👥 Briefing d'équipe, partagé
+
+> *« Construis un notebook de briefing à partir de ces cinq liens sur notre concurrent, rédige un rapport, exporte-le vers Google Docs et partage le notebook avec ana@example.com en tant que lecteur. »*
+
+L'agent enchaîne `notebook_add_url` ×5 → `report_create` → `studio_poll` → `artifact_export(format: docs)` → `notebook_share(user_email, user_role: viewer)` — et votre collègue trouve le notebook et le Doc qui l'attendent.
+
+## 🛠️ Dépannage
+
+| Symptôme | Solution |
+|---------|-----|
+| `Authentication expired` juste après la connexion | Mettez à jour vers ≥ 3.0.8 — les versions antérieures ne capturaient pas le jeton rotatif `__Secure-1PSIDTS` de Google. Le serveur le capture et le rafraîchit désormais automatiquement. |
+| `Authentication failed` après des semaines d'utilisation | Les sessions Google finissent par expirer. Lancez `npx notebooklm-mcp-server auth`, puis appelez l'outil `refresh_auth`. |
+| Génération studio bloquée sur `pending` | Les sources longues prennent du temps — continuez d'interroger `studio_poll` ; l'audio et la vidéo peuvent prendre plusieurs minutes. |
+| Erreurs RPC après une mise à jour de Google | Google fait parfois tourner ses étiquettes de build internes. Mettez à jour le paquet ; si le problème persiste, ouvrez une issue. |
+
+## 🧑‍💻 Développement
 
 ```bash
-git clone https://github.com/moodRobotics/notebook-mcp-server.git
+git clone https://github.com/moodRobotics/notebooklm-mcp-server.git
+cd notebooklm-mcp-server
 npm install
 npm run build
+npm run typecheck
 ```
+
+Les notes d'architecture se trouvent dans [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md), la feuille de route dans [docs/ROADMAP.md](./docs/ROADMAP.md).
+
+## 🌐 Localisation
+
+Ce README est disponible en [English](./README.md), [Español](./README.es.md), [Français](./README.fr.md), [Português](./README.pt.md) et [Deutsch](./README.de.md). Si vous en modifiez un, merci de garder les autres synchronisés (`npm run docs:check`).
 
 ## 📄 Licence
 
-Licence MIT. Développé avec ❤️ par [moodRobotics](https://github.com/moodRobotics).
+MIT — Développé avec ❤️ par [moodRobotics](https://github.com/moodRobotics).
+
+> [!IMPORTANT]
+> Ceci est un projet communautaire non officiel. Il n'est ni affilié à Google ni approuvé par Google. Il repose sur des API internes obtenues par rétro-ingénierie qui peuvent changer sans préavis ; utilisez-le avec un compte Google que vous acceptez d'automatiser.
