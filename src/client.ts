@@ -1,5 +1,11 @@
 import axios, { AxiosInstance } from 'axios';
-import { BASE_URL, BATCH_EXECUTE_PATH, QUERY_PATH, RPC_IDS, BUILD_LABEL, SOURCE_ADD_TIMEOUT } from './constants.js';
+import {
+  BASE_URL, BATCH_EXECUTE_PATH, QUERY_PATH, RPC_IDS, BUILD_LABEL, SOURCE_ADD_TIMEOUT,
+  templateBlock, artifactClientOptions,
+  QUIZ_QUANTITY_CODES, QUIZ_DIFFICULTY_CODES, STUDIO_VARIANT,
+  EXPORT_FORMAT_CODES, CHAT_GOAL_CODES, CHAT_RESPONSE_LENGTH_CODES,
+  SHARE_ACCESS, SHARE_PERMISSION_CODES,
+} from './constants.js';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -41,6 +47,22 @@ function parseTimestamp(tsArray: any): string | null {
 
 export type CookieProvider = () => string;
 export type CookieSaver = (cookies: string) => void;
+
+/**
+ * Map a wire artifact status code to a readable string.
+ * Backend enum: 0 unknown, 1 initialized/pending, 2 processing, 3 ready,
+ * 4 failed, 5 suggested.
+ */
+function studioStatusToString(code: any): string {
+  switch (code) {
+    case 1: return 'pending';
+    case 2: return 'in_progress';
+    case 3: return 'completed';
+    case 4: return 'failed';
+    case 5: return 'suggested';
+    default: return 'unknown';
+  }
+}
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36';
 
@@ -518,10 +540,10 @@ export class NotebookLMClient {
    * Uses the GET_NOTEBOOK RPC (rLM1Ne).
    */
   async getNotebook(notebookId: string): Promise<any> {
-    // Python: params = [notebook_id, None, [2], None, 0]
+    // Nested template block verified safe on both migrated and un-migrated cohorts.
     const result = await this.callRpc(
       RPC_IDS.GET_NOTEBOOK,
-      [notebookId, null, [2], null, 0],
+      [notebookId, null, templateBlock(), null, 0],
       `/notebook/${notebookId}`
     );
     return result;
@@ -561,8 +583,9 @@ export class NotebookLMClient {
   }
 
   async createNotebook(title: string): Promise<string> {
-    // Python: params = [title, None, None, [2], [1, None, None, None, None, None, None, None, None, None, [1]]]
-    const params = [title, null, null, [2], [1, null, null, null, null, null, null, null, null, null, [1]]];
+    // Migrated backends (Gemini 3.5 era) reject the old flat [2], [1,...] tail
+    // with gRPC status 3; the nested template block is what the web UI sends.
+    const params = [title, null, null, templateBlock()];
     const result = await this.callRpc(RPC_IDS.CREATE_NOTEBOOK, params);
     // Response: result[2] = notebook_id (Python: nb_data[2])
     if (result && Array.isArray(result) && result.length >= 3) {
@@ -592,18 +615,18 @@ export class NotebookLMClient {
   async addUrlSource(notebookId: string, url: string): Promise<string> {
     const isYoutube = url.toLowerCase().includes('youtube.com') || url.toLowerCase().includes('youtu.be');
 
-    // Python:
-    // YouTube: [None, None, None, None, None, None, None, [url], None, None, 1]
-    // Regular: [None, None, [url], None, None, None, None, None, None, None, 1]
+    // YouTube: [None, ..., [url] at pos 7, ..., 1]
+    // Regular: [None, None, [url], ..., 1]
     const sourceData = isYoutube
       ? [null, null, null, null, null, null, null, [url], null, null, 1]
       : [null, null, [url], null, null, null, null, null, null, null, 1];
 
+    // Migrated backends reject the old flat [2], [1,...] tail (gRPC 5/9);
+    // the nested template block matches the current web UI.
     const params = [
       [sourceData],
       notebookId,
-      [2],
-      [1, null, null, null, null, null, null, null, null, null, [1]]
+      templateBlock()
     ];
 
     const result = await this.callRpc(
@@ -623,14 +646,12 @@ export class NotebookLMClient {
   }
 
   async addTextSource(notebookId: string, title: string, content: string): Promise<string> {
-    // Python: source_data = [None, [title, text], None, 2, None, None, None, None, None, None, 1]
-    // Note: Type code is 2 (not 4 like our old code)
+    // source_data = [None, [title, text], None, 2, ..., 1] (type code 2 = pasted text)
     const sourceData = [null, [title, content], null, 2, null, null, null, null, null, null, 1];
     const params = [
       [sourceData],
       notebookId,
-      [2],
-      [1, null, null, null, null, null, null, null, null, null, [1]]
+      templateBlock()
     ];
 
     const result = await this.callRpc(
@@ -715,22 +736,21 @@ export class NotebookLMClient {
     customPrompt?: string,
     responseLength: 'default' | 'longer' | 'shorter' = 'default'
   ): Promise<boolean> {
-    // Python goal_code mapping: default=1, learning_guide=3, custom=2
-    const goalCodes: Record<string, number> = { default: 1, learning_guide: 3, custom: 2 };
-    const goalCode = goalCodes[goal] || 1;
+    const goalCode = CHAT_GOAL_CODES[goal] || 1;
+    const lengthCode = CHAT_RESPONSE_LENGTH_CODES[responseLength] || 1;
 
-    // Python response_length_code: default=1, longer=2, shorter=3
-    const lengthCodes: Record<string, number> = { default: 1, longer: 2, shorter: 3 };
-    const lengthCode = lengthCodes[responseLength] || 1;
-
-    const prompt = goal === 'custom' && customPrompt ? customPrompt : '';
-
-    // Python: params = [notebook_id, [goal_code, prompt, length_code]]
-    const params = [notebookId, [goalCode, prompt, lengthCode]];
+    // Chat settings ride the generic MutateProject envelope (s0tc2d) at
+    // mutation slot 7: [goal_array, [length]]. goal_array carries the custom
+    // prompt only for the custom goal. Writes the whole block (no server merge).
+    const goalArray: any[] = goal === 'custom' && customPrompt
+      ? [goalCode, customPrompt]
+      : [goalCode];
+    const chatSettings = [goalArray, [lengthCode]];
+    const params = [
+      notebookId,
+      [[null, null, null, null, null, null, null, chatSettings]],
+    ];
     await this.callRpc(RPC_IDS.RENAME_NOTEBOOK, params, `/notebook/${notebookId}`);
-    // Actually, Python uses a different RPC for chat_configure... let me check
-    // Looking at the code more carefully, Python uses a separate RPC for this.
-    // For now we use the same approach the Python server uses.
     return true;
   }
 
@@ -960,7 +980,7 @@ export class NotebookLMClient {
     const metadata = [2, null, null, 5, sourcesSimple];
     const params = [notebookId, mindMapJson, metadata, null, title];
     const result = await this.callRpc(
-      RPC_IDS.SAVE_MIND_MAP, params,
+      RPC_IDS.CREATE_NOTE, params,
       `/notebook/${notebookId}`
     );
     if (result && Array.isArray(result) && result.length > 0) {
@@ -976,7 +996,7 @@ export class NotebookLMClient {
 
   async listMindMaps(notebookId: string): Promise<any[]> {
     const result = await this.callRpc(
-      RPC_IDS.LIST_MIND_MAPS,
+      RPC_IDS.GET_NOTES,
       [notebookId],
       `/notebook/${notebookId}`
     );
@@ -1006,7 +1026,7 @@ export class NotebookLMClient {
   async deleteMindMap(notebookId: string, mindMapId: string): Promise<boolean> {
     // Step 1: Get timestamp from list
     const list = await this.callRpc(
-      RPC_IDS.LIST_MIND_MAPS,
+      RPC_IDS.GET_NOTES,
       [notebookId],
       `/notebook/${notebookId}`
     );
@@ -1020,7 +1040,7 @@ export class NotebookLMClient {
 
     // Step 2: UUID-based deletion
     await this.callRpc(
-      RPC_IDS.DELETE_MIND_MAP,
+      RPC_IDS.DELETE_NOTE,
       [notebookId, null, [mindMapId], [2]],
       `/notebook/${notebookId}`
     );
@@ -1028,7 +1048,7 @@ export class NotebookLMClient {
     // Step 3: Timestamp sync (ensures UI consistency)
     if (timestamp) {
       await this.callRpc(
-        RPC_IDS.LIST_MIND_MAPS,
+        RPC_IDS.GET_NOTES,
         [notebookId, null, timestamp, [2]],
         `/notebook/${notebookId}`
       );
@@ -1078,7 +1098,7 @@ export class NotebookLMClient {
         artifact_id: artifactId,
         notebook_id: notebookId,
         type: 'audio',
-        status: statusCode === 1 ? 'in_progress' : statusCode === 3 ? 'completed' : 'unknown',
+        status: studioStatusToString(statusCode),
       };
     }
     return null;
@@ -1121,7 +1141,7 @@ export class NotebookLMClient {
         artifact_id: artifactId,
         notebook_id: notebookId,
         type: 'video',
-        status: statusCode === 1 ? 'in_progress' : statusCode === 3 ? 'completed' : 'unknown',
+        status: studioStatusToString(statusCode),
       };
     }
     return null;
@@ -1165,25 +1185,34 @@ export class NotebookLMClient {
     return null;
   }
 
-  async createFlashcards(
+  /**
+   * Flashcards and quizzes share studio type 4, distinguished by the variant
+   * code at options slot [9][1][0] (flashcards=1, quiz=2). Option pair is
+   * [quantity, difficulty]; it sits at index 7 for quizzes but index 6 for
+   * flashcards — an asymmetry in Google's own wire format.
+   */
+  private async createQuizFamilyArtifact(
     notebookId: string,
     sourceIds: string[],
-    language: string = 'en',
-    focusPrompt: string = ''
+    variant: number,
+    focusPrompt: string = '',
+    quantity: string = 'standard',
+    difficulty: string = 'medium'
   ): Promise<any> {
-    const sourcesNested = sourceIds.map(sid => [[sid]]);
-    const sourcesSimple = sourceIds.map(sid => [sid]);
-
-    // Python: studio type 4 = flashcards
-    const options = [
-      null,
-      [focusPrompt, null, null, sourcesSimple, language]
+    const sourcesTriple = sourceIds.map(sid => [[sid]]);
+    const optionPair = [
+      QUIZ_QUANTITY_CODES[quantity] ?? 2,
+      QUIZ_DIFFICULTY_CODES[difficulty] ?? 2,
     ];
+    const instructions = focusPrompt || null;
+    const inner = variant === STUDIO_VARIANT.QUIZ
+      ? [variant, null, instructions, null, null, null, null, optionPair]
+      : [variant, null, instructions, null, null, null, optionPair];
 
     const params = [
-      [2],
+      artifactClientOptions(),
       notebookId,
-      [null, null, 4, sourcesNested, null, null, options]
+      [null, null, 4, sourcesTriple, null, null, null, null, null, [null, inner]],
     ];
 
     const result = await this.callRpc(
@@ -1196,11 +1225,38 @@ export class NotebookLMClient {
       return {
         artifact_id: Array.isArray(artifactData) ? artifactData[0] : null,
         notebook_id: notebookId,
-        type: 'flashcards',
+        type: variant === STUDIO_VARIANT.QUIZ ? 'quiz' : 'flashcards',
         status: 'in_progress',
       };
     }
     return null;
+  }
+
+  async createFlashcards(
+    notebookId: string,
+    sourceIds: string[],
+    _language: string = 'en',
+    focusPrompt: string = '',
+    quantity: string = 'standard',
+    difficulty: string = 'medium'
+  ): Promise<any> {
+    // Language is not part of the quiz/flashcards wire format (it follows the
+    // account's output language); the parameter is kept for API compatibility.
+    return this.createQuizFamilyArtifact(
+      notebookId, sourceIds, STUDIO_VARIANT.FLASHCARDS, focusPrompt, quantity, difficulty
+    );
+  }
+
+  async createQuiz(
+    notebookId: string,
+    sourceIds: string[],
+    focusPrompt: string = '',
+    quantity: string = 'standard',
+    difficulty: string = 'medium'
+  ): Promise<any> {
+    return this.createQuizFamilyArtifact(
+      notebookId, sourceIds, STUDIO_VARIANT.QUIZ, focusPrompt, quantity, difficulty
+    );
   }
 
   async createInfographic(
@@ -1371,13 +1427,370 @@ export class NotebookLMClient {
         artifact_id: artifactId,
         title,
         type: typeMap[typeCode as number] || 'unknown',
-        status: statusCode === 1 ? 'in_progress' : statusCode === 3 ? 'completed' : 'unknown',
+        status: studioStatusToString(statusCode),
         content,
         media_url: mediaUrl,
       });
     }
 
     return artifacts;
+  }
+
+  // =========================================================================
+  // Notes (user-created content; mind maps are note-backed JSON)
+  // =========================================================================
+
+  /**
+   * Parse raw GET_NOTES rows into a uniform shape. Handles both the legacy
+   * [id, [id, content, metadata, null, title]] rows and the current
+   * [null, [id, ...]] wrapper; skips soft-deleted rows ([id, null, 2]).
+   */
+  private parseNoteRows(result: any): {
+    id: string; title: string; content: string | null;
+    created_at: string | null; is_mind_map: boolean;
+  }[] {
+    if (!result || !Array.isArray(result)) return [];
+
+    const isRowLike = (item: any) =>
+      Array.isArray(item) && item.length > 0 &&
+      (typeof item[0] === 'string' ||
+        (item[0] === null && Array.isArray(item[1]) && typeof item[1][0] === 'string'));
+
+    const first = result[0];
+    const container = isRowLike(first) ? result : (Array.isArray(first) ? first : []);
+
+    const notes: {
+      id: string; title: string; content: string | null;
+      created_at: string | null; is_mind_map: boolean;
+    }[] = [];
+
+    for (const item of container) {
+      if (!isRowLike(item)) continue;
+      const row = typeof item[0] === 'string' ? item : [item[1][0], item[1], ...item.slice(2)];
+      const details = row[1];
+      // Soft-deleted rows keep the id but clear the payload
+      if (!Array.isArray(details)) continue;
+
+      const content = typeof details[1] === 'string' ? details[1] : null;
+      const title = typeof details[4] === 'string' ? details[4] : 'Untitled';
+      const createdAt = details[2] ? parseTimestamp(details[2]?.[2] || details[2]) : null;
+
+      let isMindMap = false;
+      if (content) {
+        const trimmed = content.trim();
+        isMindMap = trimmed.startsWith('{') &&
+          (trimmed.includes('"children"') || trimmed.includes('"nodes"'));
+      }
+
+      notes.push({ id: String(row[0]), title, content, created_at: createdAt, is_mind_map: isMindMap });
+    }
+    return notes;
+  }
+
+  /**
+   * Create a note. CREATE_NOTE ignores the title server-side, so a follow-up
+   * UPDATE_NOTE sets both title and content.
+   */
+  async createNote(notebookId: string, title: string, content: string = ''): Promise<any> {
+    const result = await this.callRpc(
+      RPC_IDS.CREATE_NOTE,
+      [notebookId, "", [1], null, title],
+      `/notebook/${notebookId}`
+    );
+
+    let noteId: string | null = null;
+    if (Array.isArray(result) && result.length > 0) {
+      const firstEl = result[0];
+      if (Array.isArray(firstEl) && typeof firstEl[0] === 'string') {
+        noteId = firstEl[0];
+      } else if (typeof firstEl === 'string') {
+        noteId = firstEl;
+      }
+    }
+    if (!noteId) {
+      throw new Error('CREATE_NOTE returned no usable note id; the note was not created.');
+    }
+
+    await this.updateNote(notebookId, noteId, content, title);
+    return { note_id: noteId, title, notebook_id: notebookId };
+  }
+
+  async listNotes(notebookId: string): Promise<any[]> {
+    const result = await this.callRpc(
+      RPC_IDS.GET_NOTES,
+      [notebookId],
+      `/notebook/${notebookId}`
+    );
+    return this.parseNoteRows(result)
+      .filter(n => !n.is_mind_map)
+      .map(({ is_mind_map, ...note }) => note);
+  }
+
+  async updateNote(notebookId: string, noteId: string, content: string, title: string): Promise<boolean> {
+    await this.callRpc(
+      RPC_IDS.UPDATE_NOTE,
+      [notebookId, noteId, [[[content, title, [], 0]]]],
+      `/notebook/${notebookId}`
+    );
+    return true;
+  }
+
+  /**
+   * Delete a note (soft-delete: content is cleared, the row id persists until
+   * Google garbage-collects it). Notes and mind maps share this RPC.
+   */
+  async deleteNote(notebookId: string, noteId: string): Promise<boolean> {
+    return this.deleteMindMap(notebookId, noteId);
+  }
+
+  // =========================================================================
+  // Artifact content / management
+  // =========================================================================
+
+  /**
+   * Fetch a studio artifact's generated content: interactive HTML for
+   * quizzes/flashcards ([0][9][0]) and the JSON node tree for interactive
+   * mind maps ([0][9][3]).
+   */
+  async getArtifactContent(notebookId: string, artifactId: string): Promise<any> {
+    const result = await this.callRpc(
+      RPC_IDS.GET_INTERACTIVE_HTML,
+      [artifactId],
+      `/notebook/${notebookId}`
+    );
+    const node = result?.[0]?.[9];
+    if (node) {
+      return {
+        artifact_id: artifactId,
+        html: typeof node[0] === 'string' ? node[0] : null,
+        mind_map_tree: typeof node[3] === 'string' ? node[3] : null,
+      };
+    }
+    return { artifact_id: artifactId, html: null, mind_map_tree: null, raw: result };
+  }
+
+  async renameArtifact(notebookId: string, artifactId: string, newTitle: string): Promise<boolean> {
+    // Fieldmask-style update: only the title is touched.
+    await this.callRpc(
+      RPC_IDS.RENAME_ARTIFACT,
+      [[artifactId, newTitle], [["title"]]],
+      `/notebook/${notebookId}`
+    );
+    return true;
+  }
+
+  /**
+   * Export an artifact to the user's Google Drive (Docs or Sheets).
+   * Reports/notes export well to Docs; data tables to Sheets.
+   */
+  async exportArtifact(
+    notebookId: string,
+    artifactId: string,
+    format: string = 'docs',
+    title: string = 'Export'
+  ): Promise<any> {
+    const exportCode = EXPORT_FORMAT_CODES[format] ?? 1;
+    const result = await this.callRpc(
+      RPC_IDS.EXPORT_ARTIFACT,
+      [null, artifactId, null, title, exportCode],
+      `/notebook/${notebookId}`
+    );
+    return { artifact_id: artifactId, destination: format, result };
+  }
+
+  // =========================================================================
+  // Sharing
+  // =========================================================================
+
+  async getShareStatus(notebookId: string): Promise<any> {
+    const result = await this.callRpc(
+      RPC_IDS.GET_SHARE_STATUS,
+      [notebookId, [2]],
+      `/notebook/${notebookId}`
+    );
+    return result;
+  }
+
+  /**
+   * Enable or disable public link sharing for a notebook.
+   */
+  async setNotebookPublic(notebookId: string, isPublic: boolean): Promise<any> {
+    const access = isPublic ? SHARE_ACCESS.ANYONE_WITH_LINK : SHARE_ACCESS.RESTRICTED;
+    const params = [
+      [[notebookId, null, [access], [access, ""]]],
+      1,
+      null,
+      [2],
+    ];
+    await this.callRpc(RPC_IDS.SHARE_NOTEBOOK, params, `/notebook/${notebookId}`);
+    return {
+      notebook_id: notebookId,
+      access: isPublic ? 'anyone_with_link' : 'restricted',
+      url: `${BASE_URL}/notebook/${notebookId}`,
+      status: await this.getShareStatus(notebookId),
+    };
+  }
+
+  /**
+   * Grant, update, or remove a collaborator on a notebook. The grant is an
+   * upsert; role 'remove' revokes access.
+   */
+  async setNotebookUserPermission(
+    notebookId: string,
+    email: string,
+    role: 'editor' | 'viewer' | 'remove',
+    notify: boolean = true,
+    message: string = ''
+  ): Promise<any> {
+    const isRemoval = role === 'remove';
+    const permission = isRemoval ? 4 : (SHARE_PERMISSION_CODES[role] ?? 3);
+    // Removal always sends message block [0, ""] and no notification.
+    const messageBlock = isRemoval ? [0, ""] : [message ? 0 : 1, message];
+    const params = [
+      [[notebookId, [[email, null, permission]], null, messageBlock]],
+      isRemoval ? 0 : (notify ? 1 : 0),
+      null,
+      [2],
+    ];
+    await this.callRpc(RPC_IDS.SHARE_NOTEBOOK, params, `/notebook/${notebookId}`);
+    return {
+      notebook_id: notebookId,
+      email,
+      role,
+      status: await this.getShareStatus(notebookId),
+    };
+  }
+
+  // =========================================================================
+  // Conversation history
+  // =========================================================================
+
+  private async getLastConversationId(notebookId: string): Promise<string | null> {
+    const result = await this.callRpc(
+      RPC_IDS.GET_LAST_CONVERSATION_ID,
+      [[], null, notebookId, 1],
+      `/notebook/${notebookId}`
+    );
+    // Response shape: [[[conversation_id]]]
+    const candidate = result?.[0]?.[0]?.[0] ?? result?.[0]?.[0] ?? null;
+    return typeof candidate === 'string' ? candidate : null;
+  }
+
+  async getChatHistory(notebookId: string, limit: number = 50): Promise<any> {
+    const conversationId = await this.getLastConversationId(notebookId);
+    if (!conversationId) {
+      return { conversation_id: null, turns: [], message: 'No conversation found for this notebook.' };
+    }
+    const turns = await this.callRpc(
+      RPC_IDS.GET_CONVERSATION_TURNS,
+      [[], null, null, conversationId, limit],
+      `/notebook/${notebookId}`
+    );
+    return { conversation_id: conversationId, turns };
+  }
+
+  async deleteChatHistory(notebookId: string): Promise<any> {
+    const conversationId = await this.getLastConversationId(notebookId);
+    if (!conversationId) {
+      return { deleted: false, message: 'No conversation found for this notebook.' };
+    }
+    await this.callRpc(
+      RPC_IDS.DELETE_CHAT_HISTORY,
+      [[], conversationId, null, 1],
+      `/notebook/${notebookId}`
+    );
+    return { deleted: true, conversation_id: conversationId };
+  }
+
+  // =========================================================================
+  // Source insight operations
+  // =========================================================================
+
+  /** Fetch the AI-generated guide (summary + key topics) for a source. */
+  async getSourceGuide(sourceId: string): Promise<any> {
+    const result = await this.callRpc(
+      RPC_IDS.GET_SOURCE_GUIDE,
+      [[[[sourceId]]]]
+    );
+    return result;
+  }
+
+  async renameSource(sourceId: string, newTitle: string): Promise<boolean> {
+    await this.callRpc(
+      RPC_IDS.UPDATE_SOURCE,
+      [null, [sourceId], [[[newTitle]]]]
+    );
+    return true;
+  }
+
+  async checkSourceFreshness(sourceId: string): Promise<any> {
+    const result = await this.callRpc(
+      RPC_IDS.CHECK_FRESHNESS,
+      [null, [sourceId], [2]]
+    );
+    return result;
+  }
+
+  // =========================================================================
+  // Notebook insight operations
+  // =========================================================================
+
+  /** Notebook guide: overall summary plus suggested questions. */
+  async summarizeNotebook(notebookId: string): Promise<any> {
+    const result = await this.callRpc(
+      RPC_IDS.SUMMARIZE,
+      [notebookId, [2]],
+      `/notebook/${notebookId}`
+    );
+
+    const outer = result?.[0];
+    const summary = typeof outer?.[0]?.[0] === 'string' ? outer[0][0] : '';
+    const topics: { question: string; prompt: string }[] = [];
+    const topicsList = outer?.[1]?.[0];
+    if (Array.isArray(topicsList)) {
+      for (const topic of topicsList) {
+        if (Array.isArray(topic) && topic.length >= 2) {
+          topics.push({ question: topic[0], prompt: topic[1] });
+        }
+      }
+    }
+    if (!summary && topics.length === 0) {
+      return { summary: '', suggested_topics: [], raw: result };
+    }
+    return { summary, suggested_topics: topics };
+  }
+
+  /**
+   * AI-suggested prompts/questions for a notebook. mode steers the surface:
+   * 4 = chat (default), 8 = quiz, 9 = flashcards, 1/2 = audio formats.
+   */
+  async suggestPrompts(
+    notebookId: string,
+    sourceIds?: string[],
+    mode: number = 4,
+    query?: string
+  ): Promise<any> {
+    if (!sourceIds || sourceIds.length === 0) {
+      try {
+        const notebookData = await this.getNotebook(notebookId);
+        sourceIds = this.extractSourceIdsFromNotebook(notebookData);
+      } catch {
+        sourceIds = [];
+      }
+    }
+    const params = [
+      templateBlock(),
+      notebookId,
+      sourceIds.map(id => [id]),
+      mode,
+      null,
+      query && query.trim() ? query : null,
+    ];
+    const result = await this.callRpc(
+      RPC_IDS.SUGGEST_PROMPTS, params,
+      `/notebook/${notebookId}`
+    );
+    return result;
   }
 
   // =========================================================================

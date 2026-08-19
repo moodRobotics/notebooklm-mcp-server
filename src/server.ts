@@ -7,6 +7,10 @@ import {
 import { NotebookLMClient } from "./client.js";
 import { AuthManager } from "./auth.js";
 import { VERSION } from "./version.js";
+import {
+  AUDIO_FORMAT_CODES, AUDIO_LENGTH_CODES,
+  VIDEO_STYLE_CODES, INFOGRAPHIC_ORIENTATION_CODES,
+} from "./constants.js";
 import chalk from "chalk";
 
 const server = new Server(
@@ -93,6 +97,87 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["notebook_id", "title"],
         },
       },
+      {
+        name: "notebook_get",
+        description: "Get full details of a notebook: title, sources with IDs, metadata",
+        inputSchema: {
+          type: "object",
+          properties: {
+            notebook_id: { type: "string" },
+          },
+          required: ["notebook_id"],
+        },
+      },
+      {
+        name: "notebook_summarize",
+        description: "Get the AI-generated notebook guide: overall summary plus suggested questions",
+        inputSchema: {
+          type: "object",
+          properties: {
+            notebook_id: { type: "string" },
+          },
+          required: ["notebook_id"],
+        },
+      },
+      {
+        name: "prompts_suggest",
+        description: "Get AI-suggested prompts/questions to ask about a notebook's sources",
+        inputSchema: {
+          type: "object",
+          properties: {
+            notebook_id: { type: "string" },
+            source_ids: {
+              type: "array",
+              items: { type: "string" },
+              description: "Sources to scope suggestions to (omit for all)",
+            },
+            surface: {
+              type: "string",
+              enum: ["chat", "quiz", "flashcards"],
+              description: "What the suggestions are for (default: chat)",
+            },
+            query: { type: "string", description: "Optional free-text steer for the suggestions" },
+          },
+          required: ["notebook_id"],
+        },
+      },
+
+      // ===================== Sharing =====================
+      {
+        name: "notebook_share",
+        description: "Manage notebook sharing: toggle public link access, or grant/update/remove a collaborator by email",
+        inputSchema: {
+          type: "object",
+          properties: {
+            notebook_id: { type: "string" },
+            access: {
+              type: "string",
+              enum: ["private", "anyone_with_link"],
+              description: "Public link setting (omit if only managing collaborators)",
+            },
+            user_email: { type: "string", description: "Collaborator email to grant/update/remove" },
+            user_role: {
+              type: "string",
+              enum: ["viewer", "editor", "remove"],
+              description: "Role for user_email ('remove' revokes access)",
+            },
+            notify: { type: "boolean", description: "Send an email notification to the collaborator (default true)" },
+            message: { type: "string", description: "Optional welcome message for the collaborator" },
+          },
+          required: ["notebook_id"],
+        },
+      },
+      {
+        name: "notebook_share_status",
+        description: "Get a notebook's current sharing configuration (public link state and collaborators)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            notebook_id: { type: "string" },
+          },
+          required: ["notebook_id"],
+        },
+      },
 
       // ===================== Source Operations =====================
       {
@@ -173,6 +258,40 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["source_id"],
         },
       },
+      {
+        name: "source_get_guide",
+        description: "Get the AI-generated guide for a source (summary and key topics)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            source_id: { type: "string" },
+          },
+          required: ["source_id"],
+        },
+      },
+      {
+        name: "source_rename",
+        description: "Rename a source",
+        inputSchema: {
+          type: "object",
+          properties: {
+            source_id: { type: "string" },
+            title: { type: "string", description: "New title for the source" },
+          },
+          required: ["source_id", "title"],
+        },
+      },
+      {
+        name: "source_check_freshness",
+        description: "Check whether a URL/Drive source has newer content available (use source_sync to refresh)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            source_id: { type: "string" },
+          },
+          required: ["source_id"],
+        },
+      },
 
       // ===================== Query =====================
       {
@@ -191,6 +310,30 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             conversation_id: { type: "string", description: "For follow-up questions in same conversation" },
           },
           required: ["notebook_id", "query"],
+        },
+      },
+      {
+        name: "chat_history_get",
+        description: "Get the notebook's most recent chat conversation (questions and answers)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            notebook_id: { type: "string" },
+            limit: { type: "number", description: "Max turns to return (default 50)" },
+          },
+          required: ["notebook_id"],
+        },
+      },
+      {
+        name: "chat_history_delete",
+        description: "Delete the notebook's chat history. IRREVERSIBLE.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            notebook_id: { type: "string" },
+            confirm: { type: "boolean", description: "Must be true to confirm deletion" },
+          },
+          required: ["notebook_id", "confirm"],
         },
       },
 
@@ -285,6 +428,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             language: { type: "string", description: "Language code (en, es, fr, etc.)" },
             focus_prompt: { type: "string", description: "Custom instructions for the audio" },
+            format: {
+              type: "string",
+              enum: ["deep_dive", "brief", "critique", "debate"],
+              description: "Audio format (default: deep_dive)",
+            },
+            length: {
+              type: "string",
+              enum: ["short", "default", "long"],
+              description: "Audio length (default: default)",
+            },
           },
           required: ["notebook_id"],
         },
@@ -303,6 +456,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             language: { type: "string", description: "Language code (en, es, fr, etc.)" },
             focus_prompt: { type: "string", description: "Custom instructions for the video" },
+            style: {
+              type: "string",
+              enum: ["auto", "classic", "whiteboard", "heritage", "paper_craft", "watercolor", "anime", "retro_print", "kawaii"],
+              description: "Visual style (default: auto)",
+            },
           },
           required: ["notebook_id"],
         },
@@ -323,14 +481,46 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "flashcards_create",
-        description: "Generate flashcards from notebook sources",
+        description: "Generate flashcards from notebook sources (retrieve with artifact_content_get once completed)",
         inputSchema: {
           type: "object",
           properties: {
             notebook_id: { type: "string" },
             source_ids: { type: "array", items: { type: "string" } },
-            language: { type: "string", description: "Language code" },
             focus_prompt: { type: "string", description: "Focus/instructions" },
+            quantity: {
+              type: "string",
+              enum: ["fewer", "standard", "more"],
+              description: "How many cards (default: standard)",
+            },
+            difficulty: {
+              type: "string",
+              enum: ["easy", "medium", "hard"],
+              description: "Card difficulty (default: medium)",
+            },
+          },
+          required: ["notebook_id"],
+        },
+      },
+      {
+        name: "quiz_create",
+        description: "Generate an interactive quiz from notebook sources (retrieve with artifact_content_get once completed)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            notebook_id: { type: "string" },
+            source_ids: { type: "array", items: { type: "string" } },
+            focus_prompt: { type: "string", description: "Focus/instructions for the quiz" },
+            quantity: {
+              type: "string",
+              enum: ["fewer", "standard", "more"],
+              description: "How many questions (default: standard)",
+            },
+            difficulty: {
+              type: "string",
+              enum: ["easy", "medium", "hard"],
+              description: "Question difficulty (default: medium)",
+            },
           },
           required: ["notebook_id"],
         },
@@ -345,6 +535,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             source_ids: { type: "array", items: { type: "string" } },
             language: { type: "string", description: "Language code" },
             focus_prompt: { type: "string", description: "Focus/instructions" },
+            orientation: {
+              type: "string",
+              enum: ["landscape", "portrait", "square"],
+              description: "Infographic orientation (default: landscape)",
+            },
           },
           required: ["notebook_id"],
         },
@@ -398,6 +593,102 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             artifact_id: { type: "string" },
           },
           required: ["notebook_id", "artifact_id"],
+        },
+      },
+      {
+        name: "artifact_content_get",
+        description: "Get a completed artifact's generated content: interactive HTML for quizzes/flashcards, JSON tree for interactive mind maps",
+        inputSchema: {
+          type: "object",
+          properties: {
+            notebook_id: { type: "string" },
+            artifact_id: { type: "string", description: "Artifact ID from studio_poll" },
+          },
+          required: ["notebook_id", "artifact_id"],
+        },
+      },
+      {
+        name: "artifact_rename",
+        description: "Rename a studio artifact",
+        inputSchema: {
+          type: "object",
+          properties: {
+            notebook_id: { type: "string" },
+            artifact_id: { type: "string" },
+            title: { type: "string", description: "New title" },
+          },
+          required: ["notebook_id", "artifact_id", "title"],
+        },
+      },
+      {
+        name: "artifact_export",
+        description: "Export an artifact to the user's Google Drive as a Docs or Sheets file (reports → docs, data tables → sheets)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            notebook_id: { type: "string" },
+            artifact_id: { type: "string" },
+            format: {
+              type: "string",
+              enum: ["docs", "sheets"],
+              description: "Drive destination format (default: docs)",
+            },
+            title: { type: "string", description: "Title for the exported Drive file" },
+          },
+          required: ["notebook_id", "artifact_id"],
+        },
+      },
+
+      // ===================== Notes =====================
+      {
+        name: "note_create",
+        description: "Create a note in a notebook (user-written content, distinct from AI artifacts)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            notebook_id: { type: "string" },
+            title: { type: "string", description: "Note title" },
+            content: { type: "string", description: "Note content (markdown/plain text)" },
+          },
+          required: ["notebook_id", "title", "content"],
+        },
+      },
+      {
+        name: "note_list",
+        description: "List all notes in a notebook (excludes mind maps)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            notebook_id: { type: "string" },
+          },
+          required: ["notebook_id"],
+        },
+      },
+      {
+        name: "note_update",
+        description: "Update a note's content and/or title (overwrites both fields)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            notebook_id: { type: "string" },
+            note_id: { type: "string" },
+            content: { type: "string", description: "New content" },
+            title: { type: "string", description: "New title (keeps existing if omitted)" },
+          },
+          required: ["notebook_id", "note_id", "content"],
+        },
+      },
+      {
+        name: "note_delete",
+        description: "Delete a note from a notebook. IRREVERSIBLE.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            notebook_id: { type: "string" },
+            note_id: { type: "string" },
+            confirm: { type: "boolean", description: "Must be true to confirm deletion" },
+          },
+          required: ["notebook_id", "note_id", "confirm"],
         },
       },
 
@@ -500,6 +791,89 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: "text", text: `Notebook renamed to: ${args?.title}` }] };
       }
 
+      case "notebook_get": {
+        const nbData = await client.getNotebook(args?.notebook_id as string);
+        const info = Array.isArray(nbData?.[0]) ? nbData[0] : nbData;
+        const nbTitle = typeof info?.[0] === 'string' ? info[0] : 'Untitled';
+        const sourcesArr = Array.isArray(info?.[1]) ? info[1] : [];
+        const nbSources = sourcesArr
+          .map((src: any) => ({
+            id: Array.isArray(src?.[0]) ? src[0][0] : src?.[0],
+            title: src?.[1] || 'Untitled',
+          }))
+          .filter((s: any) => typeof s.id === 'string');
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              notebook_id: args?.notebook_id,
+              title: nbTitle,
+              source_count: nbSources.length,
+              sources: nbSources,
+            }, null, 2),
+          }],
+        };
+      }
+
+      case "notebook_summarize": {
+        const guide = await client.summarizeNotebook(args?.notebook_id as string);
+        return { content: [{ type: "text", text: JSON.stringify(guide, null, 2) }] };
+      }
+
+      case "prompts_suggest": {
+        const surfaceModes: Record<string, number> = { chat: 4, quiz: 8, flashcards: 9 };
+        const mode = surfaceModes[(args?.surface as string) || 'chat'] || 4;
+        const suggestions = await client.suggestPrompts(
+          args?.notebook_id as string,
+          args?.source_ids as string[] | undefined,
+          mode,
+          args?.query as string | undefined
+        );
+        return { content: [{ type: "text", text: JSON.stringify({ suggestions }, null, 2) }] };
+      }
+
+      // ===================== Sharing =====================
+      case "notebook_share": {
+        const results: any = { notebook_id: args?.notebook_id };
+        const access = args?.access as string | undefined;
+        const userEmail = args?.user_email as string | undefined;
+        const userRole = args?.user_role as 'editor' | 'viewer' | 'remove' | undefined;
+
+        if (!access && !userEmail) {
+          return {
+            content: [{ type: "text", text: "Provide 'access' to toggle the public link and/or 'user_email' + 'user_role' to manage a collaborator." }],
+            isError: true,
+          };
+        }
+        if (userEmail && !userRole) {
+          return {
+            content: [{ type: "text", text: "user_role is required when user_email is provided." }],
+            isError: true,
+          };
+        }
+        if (access) {
+          results.public_link = await client.setNotebookPublic(
+            args?.notebook_id as string,
+            access === 'anyone_with_link'
+          );
+        }
+        if (userEmail && userRole) {
+          results.collaborator = await client.setNotebookUserPermission(
+            args?.notebook_id as string,
+            userEmail,
+            userRole,
+            args?.notify === undefined ? true : !!args?.notify,
+            (args?.message as string) || ''
+          );
+        }
+        return { content: [{ type: "text", text: JSON.stringify(results, null, 2) }] };
+      }
+
+      case "notebook_share_status": {
+        const shareStatus = await client.getShareStatus(args?.notebook_id as string);
+        return { content: [{ type: "text", text: JSON.stringify({ notebook_id: args?.notebook_id, status: shareStatus }, null, 2) }] };
+      }
+
       // ===================== Source Operations =====================
       case "notebook_add_url": {
         const sourceIdUrl = await client.addUrlSource(args?.notebook_id as string, args?.url as string);
@@ -553,6 +927,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: "text", text: JSON.stringify({ status: "success", result: syncResult }) }] };
       }
 
+      case "source_get_guide": {
+        const guideResult = await client.getSourceGuide(args?.source_id as string);
+        return { content: [{ type: "text", text: JSON.stringify({ source_id: args?.source_id, guide: guideResult }, null, 2) }] };
+      }
+
+      case "source_rename": {
+        await client.renameSource(args?.source_id as string, args?.title as string);
+        return { content: [{ type: "text", text: `Source renamed to: ${args?.title}` }] };
+      }
+
+      case "source_check_freshness": {
+        const freshness = await client.checkSourceFreshness(args?.source_id as string);
+        return { content: [{ type: "text", text: JSON.stringify({ source_id: args?.source_id, freshness }, null, 2) }] };
+      }
+
       // ===================== Query =====================
       case "notebook_query": {
         const queryResult = await client.query(
@@ -562,6 +951,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           args?.conversation_id as string | undefined
         );
         return { content: [{ type: "text", text: JSON.stringify(queryResult, null, 2) }] };
+      }
+
+      case "chat_history_get": {
+        const history = await client.getChatHistory(
+          args?.notebook_id as string,
+          (args?.limit as number) || 50
+        );
+        return { content: [{ type: "text", text: JSON.stringify(history, null, 2) }] };
+      }
+
+      case "chat_history_delete": {
+        if (!args?.confirm) {
+          return { content: [{ type: "text", text: "Deletion requires confirm=true. This action is IRREVERSIBLE." }], isError: true };
+        }
+        const deletion = await client.deleteChatHistory(args?.notebook_id as string);
+        return { content: [{ type: "text", text: JSON.stringify(deletion, null, 2) }] };
       }
 
       // ===================== Chat Configuration =====================
@@ -606,8 +1011,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           args?.notebook_id as string,
           (args?.source_ids as string[]) || [],
           (args?.language as string) || 'en',
-          1, // formatCode
-          2, // lengthCode
+          AUDIO_FORMAT_CODES[(args?.format as string) || 'deep_dive'] ?? 1,
+          AUDIO_LENGTH_CODES[(args?.length as string) || 'default'] ?? 2,
           (args?.focus_prompt as string) || ''
         );
         return { content: [{ type: "text", text: JSON.stringify({ status: "success", artifact: audioInfo }, null, 2) }] };
@@ -618,8 +1023,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           args?.notebook_id as string,
           (args?.source_ids as string[]) || [],
           (args?.language as string) || 'en',
-          1, // formatCode
-          1, // styleCode
+          1, // formatCode (explainer)
+          VIDEO_STYLE_CODES[(args?.style as string) || 'auto'] ?? 1,
           (args?.focus_prompt as string) || ''
         );
         return { content: [{ type: "text", text: JSON.stringify({ status: "success", artifact: videoInfo }, null, 2) }] };
@@ -639,10 +1044,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const fcInfo = await client.createFlashcards(
           args?.notebook_id as string,
           (args?.source_ids as string[]) || [],
-          (args?.language as string) || 'en',
-          (args?.focus_prompt as string) || ''
+          'en',
+          (args?.focus_prompt as string) || '',
+          (args?.quantity as string) || 'standard',
+          (args?.difficulty as string) || 'medium'
         );
         return { content: [{ type: "text", text: JSON.stringify({ status: "success", artifact: fcInfo }, null, 2) }] };
+      }
+
+      case "quiz_create": {
+        const quizInfo = await client.createQuiz(
+          args?.notebook_id as string,
+          (args?.source_ids as string[]) || [],
+          (args?.focus_prompt as string) || '',
+          (args?.quantity as string) || 'standard',
+          (args?.difficulty as string) || 'medium'
+        );
+        return { content: [{ type: "text", text: JSON.stringify({ status: "success", artifact: quizInfo }, null, 2) }] };
       }
 
       case "infographic_create": {
@@ -650,7 +1068,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           args?.notebook_id as string,
           (args?.source_ids as string[]) || [],
           (args?.language as string) || 'en',
-          1, // orientationCode
+          INFOGRAPHIC_ORIENTATION_CODES[(args?.orientation as string) || 'landscape'] ?? 1,
           (args?.focus_prompt as string) || ''
         );
         return { content: [{ type: "text", text: JSON.stringify({ status: "success", artifact: igInfo }, null, 2) }] };
@@ -684,6 +1102,73 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "studio_delete": {
         await client.deleteStudioArtifact(args?.notebook_id as string, args?.artifact_id as string);
         return { content: [{ type: "text", text: "Artifact deleted." }] };
+      }
+
+      case "artifact_content_get": {
+        const artifactContent = await client.getArtifactContent(
+          args?.notebook_id as string,
+          args?.artifact_id as string
+        );
+        return { content: [{ type: "text", text: JSON.stringify(artifactContent, null, 2) }] };
+      }
+
+      case "artifact_rename": {
+        await client.renameArtifact(
+          args?.notebook_id as string,
+          args?.artifact_id as string,
+          args?.title as string
+        );
+        return { content: [{ type: "text", text: `Artifact renamed to: ${args?.title}` }] };
+      }
+
+      case "artifact_export": {
+        const exportResult = await client.exportArtifact(
+          args?.notebook_id as string,
+          args?.artifact_id as string,
+          (args?.format as string) || 'docs',
+          (args?.title as string) || 'Export'
+        );
+        return { content: [{ type: "text", text: JSON.stringify({ status: "success", export: exportResult }, null, 2) }] };
+      }
+
+      // ===================== Notes =====================
+      case "note_create": {
+        const newNote = await client.createNote(
+          args?.notebook_id as string,
+          args?.title as string,
+          (args?.content as string) || ''
+        );
+        return { content: [{ type: "text", text: JSON.stringify({ status: "success", note: newNote }, null, 2) }] };
+      }
+
+      case "note_list": {
+        const notes = await client.listNotes(args?.notebook_id as string);
+        return { content: [{ type: "text", text: JSON.stringify({ notes }, null, 2) }] };
+      }
+
+      case "note_update": {
+        // Preserve the existing title when a new one is not supplied.
+        let noteTitle = args?.title as string | undefined;
+        if (!noteTitle) {
+          const existing = (await client.listNotes(args?.notebook_id as string))
+            .find((n: any) => n.id === args?.note_id);
+          noteTitle = existing?.title || 'Untitled';
+        }
+        await client.updateNote(
+          args?.notebook_id as string,
+          args?.note_id as string,
+          args?.content as string,
+          noteTitle as string
+        );
+        return { content: [{ type: "text", text: "Note updated." }] };
+      }
+
+      case "note_delete": {
+        if (!args?.confirm) {
+          return { content: [{ type: "text", text: "Deletion requires confirm=true. This action is IRREVERSIBLE." }], isError: true };
+        }
+        await client.deleteNote(args?.notebook_id as string, args?.note_id as string);
+        return { content: [{ type: "text", text: "Note deleted." }] };
       }
 
       // ===================== Mind Maps =====================
