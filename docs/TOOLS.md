@@ -1,6 +1,6 @@
 # Tools Reference
 
-Complete reference for all 47 MCP tools exposed by `notebooklm-mcp-server` v3.1.0.
+Complete reference for all 47 MCP tools exposed by `notebooklm-mcp-server` v4.0.0.
 
 Conventions:
 

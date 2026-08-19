@@ -16,7 +16,7 @@
 - [x] `__Secure-1PSIDTS` capture at login + RotateCookies auto-recovery at runtime (v3.0.8)
 - [x] Multi-language documentation (EN/ES/FR/PT/DE)
 
-### v3.1.0 — Gemini Notebook feature wave
+### v4.0.0 — Gemini Notebook feature wave
 
 - [x] Notes CRUD (`note_create/list/update/delete`)
 - [x] Interactive quizzes (`quiz_create`) with quantity/difficulty options
@@ -29,7 +29,7 @@
 - [x] Studio option enums exposed: audio format/length, video style, infographic orientation, quiz/flashcards quantity+difficulty
 - [x] Payload migration for Gemini-3.5-era backends (nested template block on create/add-source)
 
-## 🚧 Next (v3.2)
+## 🚧 Next (v4.1)
 
 - [ ] Batch source addition (multiple files/URLs in one call)
 - [ ] Slide revision via natural-language prompts (`REVISE_SLIDE` RPC is mapped)
