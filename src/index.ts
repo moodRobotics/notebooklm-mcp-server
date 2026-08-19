@@ -2,13 +2,14 @@
 import { Command } from 'commander';
 import { AuthManager } from './auth.js';
 import { checkForUpdates } from './update.js';
+import { VERSION } from './version.js';
 
 const program = new Command();
 
 program
   .name('notebooklm-mcp-server')
   .description('NotebookLM MCP Server (Node.js)')
-  .version('3.0.5');
+  .version(VERSION);
 
 program
   .command('server')

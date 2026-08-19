@@ -6,9 +6,8 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { NotebookLMClient } from "./client.js";
 import { AuthManager } from "./auth.js";
+import { VERSION } from "./version.js";
 import chalk from "chalk";
-
-const VERSION = "3.0.5";
 
 const server = new Server(
   {
@@ -42,6 +41,12 @@ try {
   console.error(chalk.yellow("Warning: No session data found. Please run 'notebooklm-mcp-server auth' to log in."));
   client = new NotebookLMClient("");
   client.setCookieProvider(loadCookiesFromDisk);
+}
+
+// Persist cookies refreshed via RotateCookies back to auth.json so the next
+// process start benefits — unless cookies are pinned via the environment.
+if (!process.env.NOTEBOOKLM_COOKIES) {
+  client.setCookieSaver((cookies) => authManager.saveCookies(cookies));
 }
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {

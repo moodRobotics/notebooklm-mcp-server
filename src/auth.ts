@@ -82,8 +82,37 @@ export class AuthManager {
       isDone = true;
     }
 
+    // Google issues __Secure-1PSIDTS (a rotating session token) via its
+    // RotateCookies mechanism, which can fire *after* the notebook UI loads.
+    // Without this token, Google rejects the jar as expired even seconds after
+    // a successful login. Wait for it, then ask Google to mint one if needed.
+    if (onStatus) onStatus('Waiting for Google session token (__Secure-1PSIDTS)...');
+    const hasPsidts = async () =>
+      (await context.cookies()).some(c => c.name === '__Secure-1PSIDTS');
+
+    const psidtsDeadline = Date.now() + 15000;
+    while (!(await hasPsidts()) && Date.now() < psidtsDeadline) {
+      await page.waitForTimeout(1000);
+    }
+
+    if (!(await hasPsidts())) {
+      // context.request shares the browser's cookie jar, so Set-Cookie
+      // responses from this call land in the context automatically.
+      try {
+        await context.request.post('https://accounts.google.com/RotateCookies', {
+          headers: {
+            'Content-Type': 'application/json',
+            'Origin': 'https://accounts.google.com',
+          },
+          data: '[0,"-0000000000000000000"]',
+        });
+      } catch {
+        // Non-fatal: the MCP client also attempts RotateCookies recovery at runtime.
+      }
+    }
+
     if (onStatus) onStatus('Extracting secure session cookies...');
-    
+
     // CRITICAL: Filter cookies to only those that match notebooklm.google.com
     // Playwright's context.cookies() without URL returns ALL cookies from ALL domains
     // (including accounts.google.com, youtube.com, etc.), causing duplicate cookie names
@@ -97,6 +126,17 @@ export class AuthManager {
       cookieMap.set(c.name, c.value);
     }
     
+    // Cookies scoped to other Google hosts (e.g. LSID on accounts.google.com)
+    // are missed by the URL filter above, but Google's session validation and
+    // RotateCookies-based __Secure-1PSIDTS recovery depend on them.
+    const CRITICAL_AUTH_COOKIES = ['__Secure-1PSIDTS', '__Secure-3PSIDTS', 'LSID'];
+    const fullJar = await context.cookies();
+    for (const c of fullJar) {
+      if (CRITICAL_AUTH_COOKIES.includes(c.name) && !cookieMap.has(c.name)) {
+        cookieMap.set(c.name, c.value);
+      }
+    }
+
     const cookieString = Array.from(cookieMap.entries())
       .map(([name, value]) => `${name}=${value}`)
       .join('; ');
@@ -107,9 +147,23 @@ export class AuthManager {
     if (missingCookies.length > 0) {
       console.error(`Warning: Missing required cookies: ${missingCookies.join(', ')}`);
     }
+    if (!cookieMap.has('__Secure-1PSIDTS')) {
+      console.error('Warning: Google did not issue __Secure-1PSIDTS during login. The server will attempt to mint it via RotateCookies on first use.');
+    }
 
     console.error(`Extracted ${cookieMap.size} unique cookies for notebooklm.google.com`);
 
+    this.saveCookies(cookieString);
+
+    console.error(`Authentication successful! Cookies saved to ${this.authPath}`);
+    await browser.close();
+  }
+
+  /**
+   * Persist a cookie string to auth.json. Also used by the MCP server to save
+   * refreshed cookies after a successful RotateCookies recovery.
+   */
+  saveCookies(cookieString: string): void {
     const authData = {
       cookies: cookieString,
       updatedAt: new Date().toISOString()
@@ -120,9 +174,6 @@ export class AuthManager {
     }
 
     fs.writeFileSync(this.authPath, JSON.stringify(authData, null, 2));
-    
-    console.error(`Authentication successful! Cookies saved to ${this.authPath}`);
-    await browser.close();
   }
 
   getSavedCookies(): string {

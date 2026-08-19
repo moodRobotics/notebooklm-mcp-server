@@ -40,6 +40,27 @@ function parseTimestamp(tsArray: any): string | null {
 }
 
 export type CookieProvider = () => string;
+export type CookieSaver = (cookies: string) => void;
+
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36';
+
+function parseCookieString(cookieString: string): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const part of cookieString.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq <= 0) continue;
+    const name = part.substring(0, eq).trim();
+    const value = part.substring(eq + 1).trim();
+    if (name) map.set(name, value);
+  }
+  return map;
+}
+
+function serializeCookieMap(map: Map<string, string>): string {
+  return Array.from(map.entries())
+    .map(([name, value]) => `${name}=${value}`)
+    .join('; ');
+}
 
 export class NotebookLMClient {
   private client: AxiosInstance;
@@ -48,6 +69,7 @@ export class NotebookLMClient {
   private initialized = false;
   private reqidCounter: number;
   private cookieProvider?: CookieProvider;
+  private cookieSaver?: CookieSaver;
 
   constructor(cookies: string) {
     this.reqidCounter = Math.floor(Math.random() * 900000 + 100000);
@@ -56,7 +78,7 @@ export class NotebookLMClient {
       baseURL: BASE_URL,
       headers: {
         'Cookie': cookies,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
+        'User-Agent': USER_AGENT,
         'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
         'Origin': BASE_URL,
         'Referer': `${BASE_URL}/`,
@@ -85,6 +107,98 @@ export class NotebookLMClient {
   }
 
   /**
+   * Set a cookie saver function that will be called to persist refreshed
+   * cookies (e.g. after a successful RotateCookies recovery).
+   */
+  setCookieSaver(saver: CookieSaver): void {
+    this.cookieSaver = saver;
+  }
+
+  private currentCookies(): Map<string, string> {
+    return parseCookieString(String(this.client.defaults.headers['Cookie'] || ''));
+  }
+
+  /**
+   * Mint or refresh the rotating __Secure-1PSIDTS session token via Google's
+   * RotateCookies endpoint. Google requires this token alongside SID; without
+   * it, even freshly extracted cookies are rejected as expired. Rotation works
+   * as long as SID plus a secondary binding (OSID, or APISID+SAPISID) are
+   * present in the jar.
+   * Returns true if new cookie values were obtained and applied.
+   */
+  private async rotateCookies(): Promise<boolean> {
+    const jar = this.currentCookies();
+    const canRotate = jar.has('SID') && (jar.has('OSID') || (jar.has('APISID') && jar.has('SAPISID')));
+    if (!canRotate) return false;
+
+    // Only send cookies a browser would route to accounts.google.com —
+    // OSID/__Secure-OSID are host-scoped to notebooklm.google.com and
+    // Google rejects requests that carry them cross-host.
+    const accountsJar = new Map(jar);
+    accountsJar.delete('OSID');
+    accountsJar.delete('__Secure-OSID');
+
+    // Google's JSPB parser varies in what it accepts for the first field;
+    // try known encodings in order and stop at the first success.
+    const bodies = ['[0,"-0000000000000000000"]', '[000,"-0000000000000000000"]'];
+
+    for (const body of bodies) {
+      try {
+        const response = await axios.post(
+          'https://accounts.google.com/RotateCookies',
+          body,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'Origin': 'https://accounts.google.com',
+              'Cookie': serializeCookieMap(accountsJar),
+              'User-Agent': USER_AGENT,
+            },
+            maxRedirects: 0,
+            timeout: 15000,
+            validateStatus: () => true,
+          }
+        );
+
+        if (response.status === 401 || response.status === 403) {
+          // Request was understood but the session itself is invalid —
+          // no amount of rotation will recover it.
+          console.error(`[NotebookLM] RotateCookies rejected the session (HTTP ${response.status}). Run: notebooklm-mcp-server auth`);
+          return false;
+        }
+        if (response.status !== 200) continue;
+
+        const setCookieHeaders: string[] = response.headers['set-cookie'] || [];
+        let updated = false;
+        for (const header of setCookieHeaders) {
+          const pair = header.split(';')[0];
+          const eq = pair.indexOf('=');
+          if (eq <= 0) continue;
+          const name = pair.substring(0, eq).trim();
+          const value = pair.substring(eq + 1).trim();
+          if (!name || !value || value === '""') continue;
+          jar.set(name, value);
+          updated = true;
+        }
+        if (!updated) continue;
+
+        const cookieString = serializeCookieMap(jar);
+        this.updateCookies(cookieString);
+        if (this.cookieSaver) {
+          try {
+            this.cookieSaver(cookieString);
+          } catch { /* persistence is best-effort */ }
+        }
+        console.error('[NotebookLM] Refreshed session token via RotateCookies.');
+        return true;
+      } catch (e: any) {
+        console.error('[NotebookLM] RotateCookies attempt failed:', e.message);
+      }
+    }
+    return false;
+  }
+
+  /**
    * Try to reload cookies from the cookie provider (e.g. from auth.json on disk).
    * Returns true if cookies were successfully reloaded.
    */
@@ -107,8 +221,16 @@ export class NotebookLMClient {
    * Initialize CSRF token and session ID from the main page.
    * Must be called before any RPC call.
    */
-  async init(): Promise<void> {
+  async init(_isRetry = false): Promise<void> {
     if (this.initialized) return;
+
+    // Google rejects a jar without the rotating __Secure-1PSIDTS token even
+    // when every other cookie is fresh. Auth extraction can race Google
+    // issuing it, so if it's missing, try to mint one before the first request.
+    if (!_isRetry && !this.currentCookies().has('__Secure-1PSIDTS')) {
+      await this.rotateCookies();
+    }
+
     try {
       const response = await this.client.get('/', {
         headers: {
@@ -125,6 +247,11 @@ export class NotebookLMClient {
       // Check if redirected to login
       const finalUrl = response.request?.res?.responseUrl || response.config?.url || '';
       if (typeof finalUrl === 'string' && finalUrl.includes('accounts.google.com')) {
+        // Before giving up, try to refresh the rotating session token and
+        // retry once — a stale/missing __Secure-1PSIDTS is recoverable.
+        if (!_isRetry && await this.rotateCookies()) {
+          return this.init(true);
+        }
         throw new AuthenticationError(
           'Authentication expired. Run notebooklm-mcp-server auth to re-authenticate.'
         );
@@ -215,9 +342,11 @@ export class NotebookLMClient {
         error.response?.status === 403;
 
       if (isAuthError && _retryCount < 2) {
-        console.error(`[NotebookLM] Auth failure. Reloading cookies (attempt ${_retryCount + 1})...`);
-        // Try to reload cookies from disk (user may have run auth in another process)
+        console.error(`[NotebookLM] Auth failure. Attempting cookie recovery (attempt ${_retryCount + 1})...`);
+        // Try to reload cookies from disk (user may have run auth in another
+        // process), then refresh the rotating session token.
         this.tryReloadCookies();
+        await this.rotateCookies();
         this.initialized = false;
         await this.init();
         return this.callRpc(rpcId, params, sourcePath, timeout, _retryCount + 1);
@@ -1363,8 +1492,9 @@ export class NotebookLMClient {
         error.response?.status === 403;
 
       if (isAuthError && _retryCount < 2) {
-        console.error(`[NotebookLM] Query auth failure. Reloading cookies (attempt ${_retryCount + 1})...`);
+        console.error(`[NotebookLM] Query auth failure. Attempting cookie recovery (attempt ${_retryCount + 1})...`);
         this.tryReloadCookies();
+        await this.rotateCookies();
         this.initialized = false;
         await this.init();
         return this.query(notebookId, queryText, sourceIds, conversationId, _retryCount + 1);
