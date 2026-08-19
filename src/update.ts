@@ -66,6 +66,24 @@ function updateOnWindows(args: string[]): Promise<never> {
   process.exit(0);
 }
 
+/**
+ * True only when `latest` is strictly newer than `current` (numeric semver
+ * compare). A plain inequality check would also fire when the local version
+ * is AHEAD of the registry (local dev builds, npm rollbacks) and silently
+ * downgrade-and-relaunch the process.
+ */
+function isNewerVersion(latest: string, current: string): boolean {
+  const l = String(latest).split('.').map(n => parseInt(n, 10) || 0);
+  const c = String(current).split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(l.length, c.length); i++) {
+    const a = l[i] || 0;
+    const b = c[i] || 0;
+    if (a > b) return true;
+    if (a < b) return false;
+  }
+  return false;
+}
+
 export async function checkForUpdates(silentStart = true) {
   try {
     // Get current version from package.json
@@ -81,7 +99,7 @@ export async function checkForUpdates(silentStart = true) {
     const { data } = await axios.get('https://registry.npmjs.org/notebooklm-mcp-server/latest', { timeout: 3000 });
     const latestVersion = data.version;
 
-    if (latestVersion !== currentVersion) {
+    if (isNewerVersion(latestVersion, currentVersion)) {
       console.error(chalk.yellow(`\n[Update] ¡Nueva versión disponible! (${latestVersion})`));
       console.error(chalk.yellow(`[Update] Actualizando y relanzando automáticamente...\n`));
 
