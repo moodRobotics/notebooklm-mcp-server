@@ -24,8 +24,13 @@ export async function runAuthCli() {
   }
 }
 
-// Only run automatically if this is the main module
-import { fileURLToPath } from 'url';
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+// Only auto-run when invoked as the standalone auth binary. Comparing
+// import.meta.url against argv[1] breaks under esbuild bundling: inside
+// dist/index.js the inlined module's import.meta.url IS dist/index.js, so
+// `node dist/index.js auth` used to launch the flow twice (two browser
+// windows). Matching the script basename is deterministic in both builds.
+import * as path from 'path';
+const entryBase = process.argv[1] ? path.basename(process.argv[1]) : '';
+if (entryBase.startsWith('auth-cli') || entryBase.startsWith('notebooklm-mcp-auth')) {
   runAuthCli();
 }
