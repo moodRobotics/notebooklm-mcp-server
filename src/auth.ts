@@ -176,6 +176,49 @@ export class AuthManager {
     fs.writeFileSync(this.authPath, JSON.stringify(authData, null, 2));
   }
 
+  /**
+   * Verify that the saved cookies actually authenticate against the API — not
+   * just that a browser login completed. A browser session can be Device Bound
+   * (DBSC): the cookies work inside the browser that holds the device key, but
+   * are rejected when replayed by a detached HTTP client. This check catches
+   * that so `auth` never claims success for cookies the server can't use.
+   *
+   * Returns a structured verdict:
+   *  - 'ok'         — the API accepted the cookies (optionally names one notebook)
+   *  - 'rejected'   — cookies exported but the API rejects them (typically DBSC)
+   *  - 'no_session' — nothing saved to validate
+   *  - 'error'      — an unexpected (non-auth) failure, e.g. network
+   */
+  async validateSavedSession(): Promise<{ status: 'ok' | 'rejected' | 'no_session' | 'error'; detail: string }> {
+    let cookies: string;
+    try {
+      cookies = this.getSavedCookies();
+    } catch {
+      return { status: 'no_session', detail: 'No saved session found.' };
+    }
+    if (!cookies) return { status: 'no_session', detail: 'Saved session is empty.' };
+
+    // Lazy import keeps the client (and its pdf-parse dependency) off the
+    // auth startup path unless a validation actually runs.
+    const { NotebookLMClient, AuthenticationError } = await import('./client.js');
+    const client = new NotebookLMClient(cookies);
+    try {
+      const notebooks = await client.listNotebooks();
+      const first = notebooks[0]?.title;
+      return {
+        status: 'ok',
+        detail: first
+          ? `API accepted the session (${notebooks.length} notebook(s), e.g. "${first}").`
+          : 'API accepted the session (no notebooks yet).',
+      };
+    } catch (e: any) {
+      if (e instanceof AuthenticationError || e?.name === 'AuthenticationError') {
+        return { status: 'rejected', detail: e.message || 'Authentication rejected by the API.' };
+      }
+      return { status: 'error', detail: e?.message || String(e) };
+    }
+  }
+
   getSavedCookies(): string {
     if (!fs.existsSync(this.authPath)) {
       throw new Error('Authentication required. Please run notebook-mcp-auth');
