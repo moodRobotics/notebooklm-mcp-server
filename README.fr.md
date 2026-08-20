@@ -282,6 +282,7 @@ L'agent enchaîne `notebook_add_url` ×5 → `report_create` → `studio_poll` �
 
 | Symptôme | Solution |
 |---------|-----|
+| `auth` signale que l'API a rejeté vos cookies juste après la connexion | Votre compte Google applique les **Device Bound Session Credentials (DBSC)** — activés par défaut sur Workspace et la plupart des comptes personnels. DBSC lie la session à une clé détenue par l'appareil, si bien que les cookies exportés du navigateur sont refusés par l'API. Les clients par extraction de cookies ne peuvent pas le contourner ; utilisez un compte Google sans DBSC. |
 | `Authentication expired` juste après la connexion | Mettez à jour vers ≥ 3.0.8 — les versions antérieures ne capturaient pas le jeton rotatif `__Secure-1PSIDTS` de Google. Le serveur le capture et le rafraîchit désormais automatiquement. |
 | `Authentication failed` après des semaines d'utilisation | Les sessions Google finissent par expirer. Lancez `npx notebooklm-mcp-server auth`, puis appelez l'outil `refresh_auth`. |
 | Génération studio bloquée sur `pending` | Les sources longues prennent du temps — continuez d'interroger `studio_poll` ; l'audio et la vidéo peuvent prendre plusieurs minutes. |
