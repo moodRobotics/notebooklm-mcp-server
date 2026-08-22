@@ -6,7 +6,7 @@ import {
   EXPORT_FORMAT_CODES, CHAT_GOAL_CODES, CHAT_RESPONSE_LENGTH_CODES,
   SHARE_ACCESS, SHARE_PERMISSION_CODES,
 } from './constants.js';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { createRequire } from 'module';
@@ -1849,7 +1849,7 @@ export class NotebookLMClient {
       }
     }
 
-    const cid = conversationId || uuidv4();
+    const cid = conversationId || randomUUID();
     // Python: sources_array = [[[sid]] for sid in source_ids] (triple nested)
     const sources = sourceIds.length > 0 ? sourceIds.map(id => [[id]]) : [];
 

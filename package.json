@@ -51,15 +51,13 @@
     "dotenv": "^16.6.1",
     "ora": "^5.4.1",
     "pdf-parse": "^2.4.5",
-    "playwright": "^1.58.2",
-    "uuid": "^9.0.1"
+    "playwright": "^1.58.2"
   },
   "devDependencies": {
     "@types/chalk": "^2.2.4",
     "@types/node": "^20.19.32",
     "@types/ora": "^3.2.0",
     "@types/pdf-parse": "^1.1.5",
-    "@types/uuid": "^9.0.8",
     "esbuild": "^0.27.3",
     "ts-node": "^10.9.0",
     "tsx": "^4.21.0",
